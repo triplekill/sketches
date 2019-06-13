@@ -1,4 +1,6 @@
 # -*- coding: utf-8 -*-
+__all__ = ['getcpucache']
+
 from ctypes import CDLL
 
 def getcpucache():

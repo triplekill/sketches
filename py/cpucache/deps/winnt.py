@@ -1,4 +1,6 @@
 # -*- coding: utf-8 -*-
+__all__ = ['getcpucache']
+
 from ctypes import (
    POINTER, Structure, Union, byref, cast, create_string_buffer,
    create_unicode_buffer, c_byte, c_ulong, c_ulonglong, c_ushort,
