@@ -1,5 +1,6 @@
 __pycache__
 *.exe
 *.obj
+*.out
 *.pdb
 *.pyc
