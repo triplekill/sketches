@@ -12,17 +12,20 @@ proc uint_t {val} {
   return [expr $val < 0 ? $val & 0xFFFFFFFF : $val]
 }
 
-if {[catch {set sec [registry get $key InstallDate]}]} {
-  puts stderr "Perhaps \"InstallDate\" value does not exist."
+proc err {val} {
+  puts stderr "Perhaps \"$val\" value does not exist."
   exit 1
+}
+
+if {[catch {set sec [registry get $key InstallDate]}]} {
+  err InstallDate ; # REG_DWORD
 }
 
 puts [clock format $sec -format {%m-%d-%Y %H:%M:%S}]
 
-# another approach (InstallDate -> REG_QWORD)
+# another approach
 if {[catch {binary scan [registry get $key InstallTime] ii l h}]} {
-  puts stderr "Perhaps \"InstallTime\" value does not exist."
-  exit 1
+  err InstallTime ; # REG_QWORD
 }
 
 puts [clock format [expr ( \
