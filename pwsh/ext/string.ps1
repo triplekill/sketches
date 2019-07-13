@@ -1,5 +1,20 @@
 #requires -version 6
 
+Add-Member -InputObject ([String] # [String].ent('...')
+) -MemberType ScriptMethod -Name ent -Value {
+  param(
+    [Parameter(Mandatory)]
+    [ValidateNotNullOrEmpty()]
+    [String]$String
+  )
+
+  process {
+    (([Char[]]$String | Group-Object).ForEach{
+      -($e = $_.Count / $String.Length) * [Math]::Log($e, 2)
+    } | Measure-Object -Sum).Sum.ToString('f3')
+  }
+} -Force
+
 Add-Member -InputObject ([String] # [String].rot13('...')
 ) -MemberType ScriptMethod -Name rot13 -Value {
   param(
