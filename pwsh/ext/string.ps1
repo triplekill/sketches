@@ -1,4 +1,38 @@
-#requires -version 6
+#requires -version 6.1
+
+Add-Member -InputObject ([String] # [String].bin('...', [encoding, decode=bool])
+) -MemberType ScriptMethod -Name bin -Value {
+  param(
+    [Parameter(Mandatory, Position=0)]
+    [ValidateNotNullOrEmpty()]
+    [String]$String,
+
+    [Parameter()]
+    [ValidateSet('ASCII',
+                 'BigEndianUnicode',
+                 'Default',
+                 'Unicode',
+                 'UTF32',
+                 'UTF7',
+                 'UTF8')]
+    [String]$Encoding = 'Default',
+
+    [Parameter()]
+    [Switch]$Decode
+  )
+
+  process {
+    .({-join[Text.Encoding]::$Encoding.GetBytes($String).ForEach{
+      [Convert]::ToString($_, 2).PadLeft(8, '0')
+    }},{[Text.Encoding]::$encoding.GetString(
+      ($String -split '(.{8})').Where{$_}.ForEach{
+        [Convert]::ToByte($_, 2)
+      })
+    })[!!$Decode]
+  }
+} -Force
+
+######################################################################################
 
 Add-Member -InputObject ([String] # [String].ent('...')
 ) -MemberType ScriptMethod -Name ent -Value {
@@ -29,7 +63,7 @@ Add-Member -InputObject ([String] # [String].rev('...')
     ($res = [Linq.Enumerable]::Reverse($String)).Dispose()
     -join$res
   }
-}
+} -Force
 
 ######################################################################################
 
