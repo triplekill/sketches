@@ -15,6 +15,24 @@ Add-Member -InputObject ([String] # [String].ent('...')
   }
 } -Force
 
+######################################################################################
+
+Add-Member -InputObject ([String] # [String].rev('...')
+) -MemberType ScriptMethod -Name rev -Value {
+  param(
+    [Parameter(Mandatory)]
+    [ValidateNotNullOrEmpty()]
+    [String]$String
+  )
+
+  process {
+    ($res = [Linq.Enumerable]::Reverse($String)).Dispose()
+    -join$res
+  }
+}
+
+######################################################################################
+
 Add-Member -InputObject ([String] # [String].rot13('...')
 ) -MemberType ScriptMethod -Name rot13 -Value {
   param(
