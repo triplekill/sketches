@@ -1,13 +1,13 @@
 #requires -version 6.1
 
-Add-Member -InputObject ([String] # [String].bin('...', [encoding, decode=bool])
-) -MemberType ScriptMethod -Name bin -Value {
+Add-Member -InputObject ([String] # [String].base64('...', [encoding, decode=bool])
+) -MemberType ScriptMethod -Name base64 -Value {
   param(
     [Parameter(Mandatory, Position=0)]
     [ValidateNotNullOrEmpty()]
     [String]$String,
 
-    [Parameter()]
+    [Parameter(Position=1)]
     [ValidateSet('ASCII',
                  'BigEndianUnicode',
                  'Default',
@@ -17,7 +17,40 @@ Add-Member -InputObject ([String] # [String].bin('...', [encoding, decode=bool])
                  'UTF8')]
     [String]$Encoding = 'Default',
 
-    [Parameter()]
+    [Parameter(Position=2)]
+    [Switch]$Decode
+  )
+
+  process {
+    .({[Convert]::ToBase64String(
+      [Text.Encoding]::$Encoding.GetBytes($String),
+      [Base64FormattingOptions]::InsertLineBreaks
+    )},{[Text.Encoding]::$Encoding.GetString(
+      [Convert]::FromBase64String($String)
+    )})[!!$Decode]
+  }
+} -Force
+
+######################################################################################
+
+Add-Member -InputObject ([String] # [String].bin('...', [encoding, decode=bool])
+) -MemberType ScriptMethod -Name bin -Value {
+  param(
+    [Parameter(Mandatory, Position=0)]
+    [ValidateNotNullOrEmpty()]
+    [String]$String,
+
+    [Parameter(Position=1)]
+    [ValidateSet('ASCII',
+                 'BigEndianUnicode',
+                 'Default',
+                 'Unicode',
+                 'UTF32',
+                 'UTF7',
+                 'UTF8')]
+    [String]$Encoding = 'Default',
+
+    [Parameter(Position=2)]
     [Switch]$Decode
   )
 
