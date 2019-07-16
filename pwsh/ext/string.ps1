@@ -84,6 +84,29 @@ Add-Member -InputObject ([String] # [String].ent('...')
 
 ######################################################################################
 
+Add-Member -InputObject ([String] # [String].repeat('...', number, single=bool)
+) -MemberType ScriptMethod -Name repeat -Value {
+  param(
+    [Parameter(Mandatory, Position=0)]
+    [ValidateNotNullOrEmpty()]
+    [String]$String,
+
+    [Parameter(Position=1)]
+    [ValidateRange(2, [Byte]::MaxValue)]
+    [Byte]$Number,
+
+    [Parameter(Position=2)]
+    [Switch]$Single
+  )
+
+  process {
+    ($res = [Linq.Enumerable]::Repeat($String, $Number)).Dispose()
+    ($res,-join$res)[!!$Single]
+  }
+} -Force
+
+######################################################################################
+
 Add-Member -InputObject ([String] # [String].rev('...')
 ) -MemberType ScriptMethod -Name rev -Value {
   param(
