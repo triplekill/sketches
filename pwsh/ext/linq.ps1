@@ -6,6 +6,46 @@ if (($ta = [PSObject].Assembly.GetType(
   $ta::Add('linq', [Linq.Enumerable])
 }
 
+######################################################################################
+
+Add-Member -InputObject ([Linq] # [Linq].max([..], type)
+) -MemberType ScriptMethod -Name max -Value {
+  param(
+    [Parameter(Mandatory, Position=0)]
+    [ValidateNotNullOrEmpty()]
+    [Object[]]$Source,
+
+    [Parameter(Position=1)]
+    [ValidateNotNull()]
+    [Type]$Type = [Int32]
+  )
+
+  process {
+    [Linq]::Max($Source -as ("$($Type.Name)[]" -as [Type]))
+  }
+} -Force
+
+######################################################################################
+
+Add-Member -InputObject ([Linq] # [Linq].min([..], type)
+) -MemberType ScriptMethod -Name min -Value {
+  param(
+    [Parameter(Mandatory, Position=0)]
+    [ValidateNotNullOrEmpty()]
+    [Object[]]$Source,
+
+    [Parameter(Position=1)]
+    [ValidateNotNull()]
+    [Type]$Type = [Int32]
+  )
+
+  process {
+    [Linq]::Min($Source -as ("$($Type.Name)[]" -as [Type]))
+  }
+} -Force
+
+######################################################################################
+
 Add-Member -InputObject ([Linq] # [Linq].zip([..], [..], method=scriptblock)
 ) -MemberType ScriptMethod -Name zip -Value {
   param(
@@ -24,7 +64,7 @@ Add-Member -InputObject ([Linq] # [Linq].zip([..], [..], method=scriptblock)
 
   process {
     ($res = [Linq]::Zip(
-      $First, $Second, $Method -as [func[Object, Object, [Object[]]]]
+      $First, $Second, $Method -as [Func[Object, Object, [Object[]]]]
     )).Dispose()
     $res
   }
