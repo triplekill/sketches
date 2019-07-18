@@ -46,6 +46,27 @@ Add-Member -InputObject ([Linq] # [Linq].min([..], type)
 
 ######################################################################################
 
+Add-Member -InputObject ([Linq] # [Linq].sub([..], type)
+) -MemberType ScriptMethod -Name sub -Value {
+  param(
+    [Parameter(Mandatory, Position=0)]
+    [ValidateNotNullOrEmpty()]
+    [Object[]]$Source,
+
+    [Parameter(Position=1)]
+    [ValidateNotNull()]
+    [Type]$Type = [Int32]
+  )
+
+  process {
+    [Linq]::Aggregate(
+      $Source, [Func[Object, Object, Object]]{$args[0] - $args[1]}
+    ) -as $Type
+  }
+} -Force
+
+######################################################################################
+
 Add-Member -InputObject ([Linq] # [Linq].zip([..], [..], method=scriptblock)
 ) -MemberType ScriptMethod -Name zip -Value {
   param(
