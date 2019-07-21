@@ -67,6 +67,23 @@ Add-Member -InputObject ([Linq] # [Linq].sub([..], type)
 
 ######################################################################################
 
+Add-Member -InputObject ([Linq] # [Linq].sum([..], type)
+) -MemberType ScriptMethod -Name sum -Value {
+  param(
+    [Parameter(Mandatory, Position=0)]
+    [ValidateNotNullOrEmpty()]
+    [Object[]]$Source,
+
+    [Parameter(Position=1)]
+    [ValidateNotNull()]
+    [Type]$Type = [Int32]
+  )
+
+  process { [Linq]::Sum($Source -as ("$($Type.Name)[]" -as [Type])) -as $Type }
+} -Force
+
+######################################################################################
+
 Add-Member -InputObject ([Linq] # [Linq].zip([..], [..], method=scriptblock)
 ) -MemberType ScriptMethod -Name zip -Value {
   param(
