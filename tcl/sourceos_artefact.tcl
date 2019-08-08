@@ -21,7 +21,7 @@ if {[catch {set keys [registry keys $key]} e]} {
 }
 
 proc uint_t {val} {
-  return [expr $val < 0 ? $val & 0xFFFFFFFF : $val]
+  return [format %u $val]
 }
 
 foreach k $keys {
