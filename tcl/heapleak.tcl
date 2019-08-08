@@ -8,7 +8,7 @@ set HKLM {HKEY_LOCAL_MACHINE}
 set key  {SOFTWARE\Microsoft\RADAR\HeapLeakDetection\DiagnosedApplications}
 
 proc uint_t {val} {
-  return [expr $val < 0 ? $val & 0xFFFFFFFF : $val]
+  return [format %u $val]
 }
 
 if {[catch {set apps [registry keys "$HKLM\\$key"]} e]} {
