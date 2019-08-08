@@ -9,7 +9,7 @@ set epoch 116444736000000000 ; # epoch as FILETIME
 set nano  10000000           ; # hundred nanoseconds
 
 proc uint_t {val} {
-  return [expr $val < 0 ? $val & 0xFFFFFFFF : $val]
+  return [format %u $val]
 }
 
 if {[catch {binary scan [registry get $key ShutdownTime] ii l h} e]} {
