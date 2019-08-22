@@ -2,6 +2,7 @@
 
 #include <iostream>
 #include <string>
+#include <cctype>
 #include <vector>
 #include <locale>
 
@@ -142,23 +143,28 @@ int wmain(int argc, wchar_t *argv[]) {
   }
 
   if (3 == argc) {
-    if (L"/r" == args[2] || L"-r" == args[2]) {
-      if (!state) {
-        std::wcout << L"[*] " << pname << L" is already running." << std::endl;
-        return 0;
-      }
-
-      ChangeProcessState(pid, pname, 0);
+    if (L'/' != args[2][0] && L'-' != args[2][0] && !args[2][1]) {
+      PrintUsage(args[0]);
+      return 1;
     }
-    else if (L"/s" == args[2] || L"-s" == args[2]) {
-      if (state) {
-        std::wcout << L"[*] " << pname << L" is already suspended." << std::endl;
-        return 0;
-      }
 
-      ChangeProcessState(pid, pname, 1);
+    switch (std::tolower(args[2][1])) {
+      case L'r':
+        if (!state) {
+          std::wcout << L"[*] " << pname << L" is already running." << std::endl;
+          return 0;
+        }
+        ChangeProcessState(pid, pname, 0);
+      break;
+      case L's':
+        if (state) {
+          std::wcout << L"[*] " << pname << L" is already suspended." << std::endl;
+          return 0;
+        }
+        ChangeProcessState(pid, pname, 1);
+      break;
+      default: PrintUsage(args[0]); break;
     }
-    else PrintUsage(args[0]);
   }
 
   return 0;
