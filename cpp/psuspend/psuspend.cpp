@@ -148,7 +148,7 @@ int wmain(int argc, wchar_t *argv[]) {
       return 1;
     }
 
-    switch (std::tolower(args[2][1])) {
+    switch (towlower(args[2][1])) {
       case L'r':
         if (!state) {
           std::wcout << L"[*] " << pname << L" is already running." << std::endl;
