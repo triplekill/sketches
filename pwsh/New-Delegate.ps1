@@ -69,8 +69,24 @@ function New-Delegate {
 
       $funcs[$fnname] = $fn.MakeGenericMethod(
         [Delegate]::CreateDelegate([Func[[Type[]], Type]], $method).Invoke($fnargs)
-      ).Invoke([Marshal], $fnaddr)#>
+      ).Invoke([Marshal], $fnaddr)
     }
     $funcs
   }
 }
+
+<#
+# Usage example
+
+$ntdll = New-Delegate ntdll -Signature {
+  int NtQueryTimerResolution([uint_, uint_, uint_])
+  int RtlNtStatusToDosError([int])
+}
+
+$mx, $mn, $cr = [UInt32[]](,0 * 3)
+if (($nts = $ntdll.NtQueryTimerResolution.Invoke([ref]$mx, [ref]$mn, [ref]$cr)) -ne 0) {
+  [ComponentModel.Win32Exception]::new($ntdll.RtlNtStatusToDosError.Invoke($nts)).Message
+  break
+}
+($mx, $mn, $cr).ForEach{ '{0:F3} ms' -f ($_ / 10000) }
+#>
