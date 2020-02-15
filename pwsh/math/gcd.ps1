@@ -1,1 +1,1 @@
-$function:gcd = {param($x, $y) .({gcd $y ($x%$y)},{$x})[!$y]}
+$function:gcd = {param($x, $y) [Math]::Abs((.({gcd $y ($x%$y)},{$x})[!$y]))}
