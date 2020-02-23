@@ -1,3 +1,7 @@
+#if !CODE_ANALYSIS
+  #define CODE_ANALYSIS
+#endif
+
 using System;
 using System.Linq;
 using System.Drawing;
