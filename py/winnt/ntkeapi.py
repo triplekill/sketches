@@ -1,5 +1,4 @@
 from enum     import IntEnum
-from wintypes import CEnum
 
 KTHREAD_STATE = IntEnum('KTHREAD_STATE', (
    'Initialized',
@@ -13,7 +12,7 @@ KTHREAD_STATE = IntEnum('KTHREAD_STATE', (
    'GateWaitObsolete',
    'WaitingForProcessInSwap',
    'MaximumThreadState'
-), start=0, type=CEnum)
+), start=0)
 
 KWAIT_REASON = IntEnum('KWAIT_REASON', (
     'Executive',
@@ -56,4 +55,4 @@ KWAIT_REASON = IntEnum('KWAIT_REASON', (
     'WrAlertByThreadId',
     'WrDeferredPreempt',
     'MaximumWaitReason'
-), start=0, type=CEnum)
+), start=0)
