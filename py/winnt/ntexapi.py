@@ -23,11 +23,11 @@ SYSTEM_INFORMATION_CLASS = IntEnum('SYSTEM_INFORMATION_CLASS', (
    'SystemStackTraceInformation', # q: RTL_PROCESS_BACKTRACES
    'SystemPagedPoolInformation', # r: STATUS_NOT_IMPLEMENTED
    'SystemNonPagedPoolInformation', # r: STATUS_NOT_IMPLEMENTED
-   'SystemHandleInformation',
-   'SystemObjectInformation',
-   'SystemPageFileInformation',
-   'SystemVdmInstemulInformation',
-   'SystemVdmBopInformation',
+   'SystemHandleInformation', # q: SYSTEM_HANDLE_INFORMATION
+   'SystemObjectInformation', # q: SYSTEM_OBJECTTYPE_INFORMATION (SYSTEM_OBJECT_INFORMATION)
+   'SystemPageFileInformation', # q: SYSTEM_PAGEFILE_INFORMATION
+   'SystemVdmInstemulInformation', # q: SYSTEM_VDM_INSTEMUL_INFO
+   'SystemVdmBopInformation', # r: STATUS_NOT_IMPLEMENTED
    'SystemFileCacheInformation',
    'SystemPoolTagInformation',
    'SystemInterruptInformation',
@@ -471,6 +471,101 @@ class RTL_PROCESS_BACKTRACES(nt.CStruct):
       ('NumberOfBackTraceLookups', nt.ULONG),
       ('NumberOfBackTraces',       nt.ULONG),
       ('BackTraces',               RTL_PROCESS_BACKTRACE_INFORMATION * 1),
+   )
+
+class SYSTEM_HANDLE_TABLE_ENTRY_INFO(nt.CStruct):
+   _fields_ = ( # x86 = 16, x64 = 24
+      ('UniqueProcessId',       nt.USHORT),
+      ('CreatorBackTraceIndex', nt.USHORT),
+      ('ObjectTypeIndex',       nt.UCHAR),
+      ('HandleAttributes',      nt.UCHAR),
+      ('HandleValue',           nt.USHORT),
+      ('Object',                nt.PVOID),
+      ('GrantedAccess',         nt.ULONG),
+   )
+
+class SYSTEM_HANDLE_INFORMATION(nt.CStruct):
+   _fields_ = ( # x86 = 20, x64 = 32
+      ('NumberOfHandles', nt.ULONG),
+      ('Handles',         SYSTEM_HANDLE_TABLE_ENTRY_INFO * 1),
+   )
+
+class SYSTEM_OBJECTTYPE_INFORMATION(nt.CStruct):
+   _fields_ = ( # x86 = 56, x64 = 64
+      ('NextEntryOffset',   nt.ULONG),
+      ('NumberOfObjects',   nt.ULONG),
+      ('NumberOfHandles',   nt.ULONG),
+      ('TypeIndex',         nt.ULONG),
+      ('InvalidAttributes', nt.ULONG),
+      ('GenericMapping',    nt.GENERIC_MAPPING),
+      ('ValidAccessMask',   nt.ULONG),
+      ('PoolType',          nt.ULONG),
+      ('SecurityRequired',  nt.BOOLEAN),
+      ('WaitableObject',    nt.BOOLEAN),
+      ('TypeName',          nt.UNICODE_STRING),
+   )
+
+class SYSTEM_OBJECT_INFORMATION(nt.CStruct):
+   _fields_ = ( # x86 = 48, x64 = 80
+      ('NextEntryOffset',       nt.ULONG),
+      ('Object',                nt.PVOID),
+      ('CreatorUniqueProcess',  nt.HANDLE),
+      ('CreatorBackTraceIndex', nt.USHORT),
+      ('Flags',                 nt.USHORT),
+      ('PointerCount',          nt.LONG),
+      ('HandleCount',           nt.LONG),
+      ('PagedPoolCharge',       nt.ULONG),
+      ('NonPagedPoolCharge',    nt.ULONG),
+      ('ExclusiveProcessId',    nt.HANDLE),
+      ('SecurityDescriptor',    nt.PVOID),
+      ('NameInfo',              nt.OBJECT_NAME_INFORMATION),
+   )
+
+class SYSTEM_PAGEFILE_INFORMATION(nt.CStruct):
+   _fields_ = ( # x86 = 24, x64 = 32
+      ('NextEntryOffset', nt.ULONG),
+      ('TotalSize',       nt.ULONG),
+      ('TotalInUse',      nt.ULONG),
+      ('PeakUsage',       nt.ULONG),
+      ('PageFileName',    nt.UNICODE_STRING),
+   )
+
+class SYSTEM_VDM_INSTEMUL_INFO(nt.CStruct):
+   _fields_ = ( # x86 = x64 = 136
+      ('SegmentNotPresent',  nt.ULONG),
+      ('VdmOpcode0F',        nt.ULONG),
+      ('OpcodeESPrefix',     nt.ULONG),
+      ('OpcodeCSPrefix',     nt.ULONG),
+      ('OpcodeSSPrefix',     nt.ULONG),
+      ('OpcodeDSPrefix',     nt.ULONG),
+      ('OpcodeFSPrefix',     nt.ULONG),
+      ('OpcodeGSPrefix',     nt.ULONG),
+      ('OpcodeOPER32Prefix', nt.ULONG),
+      ('OpcodeADDR32Prefix', nt.ULONG),
+      ('OpcodeINSB',         nt.ULONG),
+      ('OpcodeINSW',         nt.ULONG),
+      ('OpcodeOUTSB',        nt.ULONG),
+      ('OpcodeOUTSW',        nt.ULONG),
+      ('OpcodePUSHF',        nt.ULONG),
+      ('OpcodePOPF',         nt.ULONG),
+      ('OpcodeINTnn',        nt.ULONG),
+      ('OpcodeINTO',         nt.ULONG),
+      ('OpcodeIRET',         nt.ULONG),
+      ('OpcodeINBimm',       nt.ULONG),
+      ('OpcodeINWimm',       nt.ULONG),
+      ('OpcodeOUTBimm',      nt.ULONG),
+      ('OpcodeOUTWimm',      nt.ULONG),
+      ('OpcodeINB',          nt.ULONG),
+      ('OpcodeINW',          nt.ULONG),
+      ('OpcodeOUTB',         nt.ULONG),
+      ('OpcodeOUTW',         nt.ULONG),
+      ('OpcodeLOCKPrefix',   nt.ULONG),
+      ('OpcodeREPNEPrefix',  nt.ULONG),
+      ('OpcodeREPPrefix',    nt.ULONG),
+      ('OpcodeHLT',          nt.ULONG),
+      ('OpcodeCLI',          nt.ULONG),
+      ('OpcodeSTI',          nt.ULONG),
+      ('BopCount',           nt.ULONG),
    )
 # ====================================================================================
 NtQuerySystemInformation.restype  = nt.NTSTATUS
