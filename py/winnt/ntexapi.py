@@ -15,14 +15,14 @@ SYSTEM_INFORMATION_CLASS = IntEnum('SYSTEM_INFORMATION_CLASS', (
    'SystemProcessInformation', # q: SYSTEM_PROCESS_INFORMATION
    'SystemCallCountInformation', # q: SYSTEM_CALL_COUNT_INFORMATION
    'SystemDeviceInformation', # q: SYSTEM_DEVICE_INFORMATION
-   'SystemProcessorPerformanceInformation',
-   'SystemFlagsInformation',
-   'SystemCallTimeInformation',
-   'SystemModuleInformation',
-   'SystemLocksInformation',
-   'SystemStackTraceInformation',
-   'SystemPagedPoolInformation',
-   'SystemNonPagedPoolInformation',
+   'SystemProcessorPerformanceInformation', # q: SYSTEM_PROCESSOR_PERFORMANCE_INFORMATION
+   'SystemFlagsInformation', # q: SYSTEM_FLAGS_INFORMATION
+   'SystemCallTimeInformation', # r: STATUS_NOT_IMPLEMENTED, q: SYSTEM_CALL_TIME_INFORMATION
+   'SystemModuleInformation', # q: RTL_PROCESS_MODULES (ntldr.py)
+   'SystemLocksInformation', # q: RTL_PROCESS_LOCKS
+   'SystemStackTraceInformation', # q: RTL_PROCESS_BACKTRACES
+   'SystemPagedPoolInformation', # r: STATUS_NOT_IMPLEMENTED
+   'SystemNonPagedPoolInformation', # r: STATUS_NOT_IMPLEMENTED
    'SystemHandleInformation',
    'SystemObjectInformation',
    'SystemPageFileInformation',
@@ -411,6 +411,66 @@ class SYSTEM_DEVICE_INFORMATION(nt.CStruct):
       ('NumberOfTapes',         nt.ULONG),
       ('NumberOfSerialPorts',   nt.ULONG),
       ('NumberOfParallelPorts', nt.ULONG),
+   )
+
+class SYSTEM_PROCESSOR_PERFORMANCE_INFORMATION(nt.CStruct):
+   _fields_ = ( # x86 = x64 = 48
+      ('IdleTime',       nt.LARGE_INTEGER),
+      ('KernelTime',     nt.LARGE_INTEGER),
+      ('UserTime',       nt.LARGE_INTEGER),
+      ('DpcTime',        nt.LARGE_INTEGER),
+      ('InterruptTime',  nt.LARGE_INTEGER),
+      ('InterruptCount', nt.ULONG),
+   )
+
+class SYSTEM_FLAGS_INFORMATION(nt.CStruct):
+   _fields_ = ( # x86 = x64 = 4
+      ('Flags', nt.ULONG),
+   )
+
+class SYSTEM_CALL_TIME_INFORMATION(nt.CStruct):
+   _fields_ = ( # x86 = x64 = 16
+      ('Length',      nt.ULONG),
+      ('TotalCalls',  nt.ULONG),
+      ('TimeOfCalls', nt.LARGE_INTEGER * 1),
+   )
+
+class RTL_PROCESS_LOCK_INFORMATION(nt.CStruct):
+   _fields_ = ( # x86 = 36, x64 = 48
+      ('Address',                  nt.PVOID),
+      ('Type',                     nt.USHORT),
+      ('CreatorBackTraceIndex',    nt.USHORT),
+      ('OwningThread',             nt.HANDLE),
+      ('LockCount',                nt.LONG),
+      ('ContentionCount',          nt.ULONG),
+      ('EntryCount',               nt.ULONG),
+      ('RecursionCount',           nt.LONG),
+      ('NumberOfWaitingShared',    nt.ULONG),
+      ('NumberOfWaitingExclusive', nt.ULONG),
+   )
+
+class RTL_PROCESS_LOCKS(nt.CStruct):
+   _fields_ = ( # x86 = 40, x64 = 56
+      ('NumberOfLocks', nt.ULONG),
+      ('Locks',         RTL_PROCESS_LOCK_INFORMATION * 1),
+   )
+
+class RTL_PROCESS_BACKTRACE_INFORMATION(nt.CStruct):
+   _fields_ = ( # x86 = 140, x64 = 272
+      ('SymbolicBackTrace', nt.PSTR),
+      ('TraceCount',        nt.ULONG),
+      ('Index',             nt.USHORT),
+      ('Depth',             nt.USHORT),
+      ('BackTrace',         nt.PVOID * 32),
+   )
+
+class RTL_PROCESS_BACKTRACES(nt.CStruct):
+   _fields_ = ( # x86 = 156, x64 = 296
+      ('CommittedMemory',          nt.ULONG_PTR),
+      ('ReservedMemory',           nt.ULONG_PTR),
+      ('NumberOfBackTraceLookups', nt.ULONG),
+      ('NumberOfBackTraces',       nt.ULONG),
+      ('BackTraces',               RTL_PROCESS_BACKTRACE_INFORMATION * 1),
    )
 # ====================================================================================
 NtQuerySystemInformation.restype  = nt.NTSTATUS

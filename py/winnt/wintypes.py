@@ -1,19 +1,22 @@
 from ctypes import (
-   POINTER, Structure, Union, c_char, c_long, c_longlong, c_size_t, c_ulong, c_ulonglong, c_ushort, c_void_p, c_wchar_p, sizeof
+   POINTER, Structure, Union, c_char, c_long, c_longlong, c_short, c_size_t, c_ubyte, c_ulong, c_ulonglong, c_ushort, c_void_p, c_wchar_p, sizeof
 )
 from enum   import IntEnum
-
+# ====================================================================================
 CCHAR     = CHAR      = c_char
+CSHORT    = SHORT     = c_short
 DWORD     = ULONG     = c_ulong
-HANDLE    = PVOID     = c_void_p
+HANDLE    = HLOCAL    = LPCVOID  = LPVOID = PVOID = va_list = c_void_p
 LONG      = KPRIORITY = NTSTATUS = c_long
 LONGLONG  = c_longlong
 PWSTR     = c_wchar_p
 SIZE_T    = c_size_t
 ULONGLONG = c_ulonglong
 ULONG_PTR = c_ulonglong if 8 == sizeof(c_void_p) else c_ulong
+UCHAR     = c_ubyte
 USHORT    = c_ushort
-
+# ====================================================================================
+PCHAR  = PSTR = POINTER(CHAR)
 PULONG = POINTER(ULONG)
 # ====================================================================================
 class CEnum(IntEnum):
