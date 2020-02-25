@@ -1,4 +1,4 @@
-from enum     import IntEnum
+from enum import IntEnum
 
 KTHREAD_STATE = IntEnum('KTHREAD_STATE', (
    'Initialized',
