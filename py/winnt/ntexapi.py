@@ -1,10 +1,11 @@
 import wintypes as nt
 
-from ctypes   import Structure, windll
+from ctypes   import Structure, Union, windll
 from enum     import IntEnum
 from ntkeapi  import KTHREAD_STATE, KWAIT_REASON
 # ====================================================================================
 NtQuerySystemInformation = windll.ntdll.NtQuerySystemInformation
+NtQueryTimerResolution   = windll.ntdll.NtQueryTimerResolution
 # ====================================================================================
 SYSTEM_INFORMATION_CLASS = IntEnum('SYSTEM_INFORMATION_CLASS', (
    'SystemBasicInformation', # q: SYSTEM_BASIC_INFORMATION
@@ -28,11 +29,11 @@ SYSTEM_INFORMATION_CLASS = IntEnum('SYSTEM_INFORMATION_CLASS', (
    'SystemPageFileInformation', # q: SYSTEM_PAGEFILE_INFORMATION
    'SystemVdmInstemulInformation', # q: SYSTEM_VDM_INSTEMUL_INFO
    'SystemVdmBopInformation', # r: STATUS_NOT_IMPLEMENTED
-   'SystemFileCacheInformation',
-   'SystemPoolTagInformation',
-   'SystemInterruptInformation',
-   'SystemDpcBehaviorInformation',
-   'SystemFullMemoryInformation',
+   'SystemFileCacheInformation', # q: SYSTEM_FILECACHE_INFORMATION, s: SeIncreaseQuotaPrivilege
+   'SystemPoolTagInformation', # q: SYSTEM_POOLTAG_INFORMATION
+   'SystemInterruptInformation', # q: SYSTEM_INTERRUPT_INFORMATION
+   'SystemDpcBehaviorInformation', # q: SYSTEM_DPC_BEHAVIOR_INFORMATION, s: SeLoadDriverPrivilege
+   'SystemFullMemoryInformation', # r: STATUS_NOT_IMPLEMENTED
    'SystemLoadGdiDriverInformation',
    'SystemUnloadGdiDriverInformation',
    'SystemTimeAdjustmentInformation',
@@ -567,6 +568,64 @@ class SYSTEM_VDM_INSTEMUL_INFO(nt.CStruct):
       ('OpcodeSTI',          nt.ULONG),
       ('BopCount',           nt.ULONG),
    )
+
+class SYSTEM_FILECACHE_INFORMATION(nt.CStruct):
+   _fields_ = ( # x86 = 36, x64 = 64
+      ('CurrentSize',                           nt.SIZE_T),
+      ('PeakSize',                              nt.SIZE_T),
+      ('PageFaultCount',                        nt.ULONG),
+      ('MinimumWorkingSet',                     nt.SIZE_T),
+      ('MaximumWorkingSet',                     nt.SIZE_T),
+      ('CurrentSizeIncludingTransitionInPages', nt.SIZE_T),
+      ('PeakSizeIncludingTransitionInPages',    nt.SIZE_T),
+      ('TransitionRePurposeCount',              nt.ULONG),
+      ('Flags',                                 nt.ULONG),
+   )
+
+class SYSTEM_POOLTAG_UNION(Union):
+   _fields_ = (
+      ('Tag',      nt.UCHAR * 4),
+      ('TagUlong', nt.ULONG),
+   )
+
+class SYSTEM_POOLTAG(nt.CStruct):
+   _fields_ = ( # x86 = 28, x64 = 40
+      ('Tag',            SYSTEM_POOLTAG_UNION),
+      ('PagedAllocs',    nt.ULONG),
+      ('PagedFrees',     nt.ULONG),
+      ('PagedUsed',      nt.SIZE_T),
+      ('NonPagedAllocs', nt.ULONG),
+      ('NonPagedFrees',  nt.ULONG),
+      ('NonPagedUsed',   nt.SIZE_T),
+   )
+
+class SYSTEM_POOLTAG_INFORMATION(nt.CStruct):
+   _fields_ = ( # x86 = 32, x64 = 48
+      ('Count',   nt.ULONG),
+      ('TagInfo', SYSTEM_POOLTAG * 1),
+   )
+
+class SYSTEM_INTERRUPT_INFORMATION(nt.CStruct):
+   _fields_ = ( # x86 = x64 = 24
+      ('ContextSwitches', nt.ULONG),
+      ('DpcCount',        nt.ULONG),
+      ('DpcRate',         nt.ULONG),
+      ('TimeIncrement',   nt.ULONG),
+      ('DpcBypassCount',  nt.ULONG),
+      ('ApcBypassCount',  nt.ULONG),
+   )
+
+class SYSTEM_DPC_BEHAVIOR_INFORMATION(nt.CStruct):
+   _fields_ = ( # x86 = x64 = 20
+      ('Spare',              nt.ULONG),
+      ('DpcQueueDepth',      nt.ULONG),
+      ('MinimumDpcRate',     nt.ULONG),
+      ('AdjustDpcThreshold', nt.ULONG),
+      ('IdealDpcRate',       nt.ULONG),
+   )
 # ====================================================================================
 NtQuerySystemInformation.restype  = nt.NTSTATUS
 NtQuerySystemInformation.argtypes = [SYSTEM_INFORMATION_CLASS, nt.PVOID, nt.ULONG, nt.PULONG]
+
+NtQueryTimerResolution.restype    = nt.NTSTATUS
+NtQueryTimerResolution.argtypes   = [nt.PULONG, nt.PULONG, nt.PULONG]
