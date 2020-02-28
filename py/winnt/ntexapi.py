@@ -34,18 +34,18 @@ SYSTEM_INFORMATION_CLASS = IntEnum('SYSTEM_INFORMATION_CLASS', (
    'SystemInterruptInformation', # q: SYSTEM_INTERRUPT_INFORMATION
    'SystemDpcBehaviorInformation', # q: SYSTEM_DPC_BEHAVIOR_INFORMATION, s: SeLoadDriverPrivilege
    'SystemFullMemoryInformation', # r: STATUS_NOT_IMPLEMENTED
-   'SystemLoadGdiDriverInformation',
-   'SystemUnloadGdiDriverInformation',
-   'SystemTimeAdjustmentInformation',
-   'SystemSummaryMemoryInformation',
-   'SystemMirrorMemoryInformation',
-   'SystemPerformanceTraceInformation',
-   'SystemObsolete0',
-   'SystemExceptionInformation',
-   'SystemCrashDumpStateInformation',
-   'SystemKernelDebuggerInformation',
-   'SystemContextSwitchInformation',
-   'SystemRegistryQuotaInformation',
+   'SystemLoadGdiDriverInformation', # kernel-mode
+   'SystemUnloadGdiDriverInformation', # kernel-mode
+   'SystemTimeAdjustmentInformation', # q: SYSTEM_QUERY_TIME_ADJUST_INFORMATION, s: SeSystemTimePrivilege
+   'SystemSummaryMemoryInformation', # r: STATUS_NOT_IMPLEMENTED
+   'SystemMirrorMemoryInformation', # q: value "Kernel-MemoryMirroringSupported", s: SeShutdownPrivilege
+   'SystemPerformanceTraceInformation', # depends on EVENT_TRACE_INFORMATION_CLASS
+   'SystemObsolete0', # r: STATUS_NOT_IMPLEMENTED
+   'SystemExceptionInformation', # q: SYSTEM_EXCEPTION_INFORMATION
+   'SystemCrashDumpStateInformation', # q: SYSTEM_CRASH_DUMP_STATE_INFORMATION, s: SeDebugPrivilege
+   'SystemKernelDebuggerInformation', # q: SYSTEM_KERNEL_DEBUGGER_INFORMATION
+   'SystemContextSwitchInformation', # q: SYSTEM_CONTEXT_SWITCH_INFORMATION
+   'SystemRegistryQuotaInformation', # q: SYSTEM_REGISTRY_QUOTA_INFORMATION, s: SeIncreaseQuotaPrivilege
    'SystemExtendServiceTableInformation',
    'SystemPrioritySeperation',
    'SystemVerifierAddDriverInformation',
@@ -55,9 +55,9 @@ SYSTEM_INFORMATION_CLASS = IntEnum('SYSTEM_INFORMATION_CLASS', (
    'SystemCurrentTimeZoneInformation',
    'SystemLookasideInformation',
    'SystemTimeSlipNotification',
-   'SystemSessionCreate',
-   'SystemSessionDetach',
-   'SystemSessionInformation',
+   'SystemSessionCreate', # r: STATUS_NOT_IMPLEMENTED
+   'SystemSessionDetach', # r: STATUS_NOT_IMPLEMENTED
+   'SystemSessionInformation', # r: STATUS_NOT_IMPLEMENTED, q: SYSTEM_SESSION_INFORMATION
    'SystemRangeStartInformation',
    'SystemVerifierInformation',
    'SystemVerifierThunkExtend',
@@ -82,18 +82,18 @@ SYSTEM_INFORMATION_CLASS = IntEnum('SYSTEM_INFORMATION_CLASS', (
    'SystemWatchdogTimerHandler',
    'SystemWatchdogTimerInformation',
    'SystemLogicalProcessorInformation',
-   'SystemWow64SharedInformationObsolete',
+   'SystemWow64SharedInformationObsolete', # r: STATUS_NOT_IMPLEMENTED
    'SystemRegisterFirmwareTableInformationHandler',
    'SystemFirmwareTableInformation',
    'SystemModuleInformationEx',
-   'SystemVerifierTriageInformation',
+   'SystemVerifierTriageInformation', # r: STATUS_NOT_IMPLEMENTED
    'SystemSuperfetchInformation',
    'SystemMemoryListInformation',
    'SystemFileCacheInformationEx',
    'SystemThreadPriorityClientIdInformation',
    'SystemProcessorIdleCycleTimeInformation',
-   'SystemVerifierCancellationInformation',
-   'SystemProcessorPowerInformationEx',
+   'SystemVerifierCancellationInformation', # r: STATUS_NOT_IMPLEMENTED
+   'SystemProcessorPowerInformationEx', # r: STATUS_NOT_IMPLEMENTED
    'SystemRefTraceInformation',
    'SystemSpecialPoolInformation',
    'SystemProcessIdInformation',
@@ -104,7 +104,7 @@ SYSTEM_INFORMATION_CLASS = IntEnum('SYSTEM_INFORMATION_CLASS', (
    'SystemTimeZoneInformation',
    'SystemImageFileExecutionOptionsInformation',
    'SystemCoverageInformation',
-   'SystemPrefetchPatchInformation',
+   'SystemPrefetchPatchInformation', # r: STATUS_NOT_IMPLEMENTED
    'SystemVerifierFaultsInformation',
    'SystemSystemPartitionInformation',
    'SystemSystemDiskInformation',
@@ -122,8 +122,8 @@ SYSTEM_INFORMATION_CLASS = IntEnum('SYSTEM_INFORMATION_CLASS', (
    'SystemAitSamplingValue',
    'SystemVhdBootInformation',
    'SystemCpuQuotaInformation',
-   'SystemNativeBasicInformation',
-   'SystemErrorPortTimeouts',
+   'SystemNativeBasicInformation', # r: STATUS_NOT_IMPLEMENTED
+   'SystemErrorPortTimeouts', # r: STATUS_NOT_IMPLEMENTED
    'SystemLowPriorityIoInformation',
    'SystemBootEntropyInformation',
    'SystemVerifierCountersInformation',
@@ -622,6 +622,66 @@ class SYSTEM_DPC_BEHAVIOR_INFORMATION(nt.CStruct):
       ('MinimumDpcRate',     nt.ULONG),
       ('AdjustDpcThreshold', nt.ULONG),
       ('IdealDpcRate',       nt.ULONG),
+   )
+
+class SYSTEM_QUERY_TIME_ADJUST_INFORMATION(nt.CStruct):
+   _fields_ = ( # x86 = x64 = 12
+      ('TimeAdjustment', nt.ULONG),
+      ('TimeIncrement',  nt.ULONG),
+      ('Enable',         nt.BOOLEAN),
+   )
+
+class SYSTEM_EXCEPTION_INFORMATION(nt.CStruct):
+   _fields_ = ( # x86 = x64 = 16
+      ('AlignmentFixupCount',    nt.ULONG),
+      ('ExceptionDispatchCount', nt.ULONG),
+      ('FloatingEmulationCount', nt.ULONG),
+      ('ByteWordEmulationCount', nt.ULONG),
+   )
+
+SYSTEM_CRASH_DUMP_CONFIGURATION_CLASS = IntEnum('SYSTEM_CRASH_DUMP_CONFIGURATION_CLASS', (
+   'SystemCrashDumpDisable',
+   'SystemCrashDumpReconfigure',
+   'SystemCrashDumpInitializationComplete',
+), start=0)
+
+class SYSTEM_CRASH_DUMP_STATE_INFORMATION(nt.CStruct):
+   _fields_ = ( # x86 = x64 = 4
+      ('_CrashDumpConfigurationClass', nt.ULONG),
+   )
+   @property
+   def CrashDumpConfigurationClass(self):
+      return SYSTEM_CRASH_DUMP_CONFIGURATION_CLASS(
+         self._CrashDumpConfigurationClass
+      ).name if self._CrashDumpConfigurationClass else None
+
+class SYSTEM_KERNEL_DEBUGGER_INFORMATION(nt.CStruct):
+   _fields_ = ( # x86 = x64 = 2
+      ('KernelDebuggerEnabled',    nt.BOOLEAN),
+      ('KernelDebuggerNotPresent', nt.BOOLEAN),
+   )
+
+class SYSTEM_CONTEXT_SWITCH_INFORMATION(nt.CStruct):
+   _fields_ = ( # x86 = x64 = 48
+      ('ContextSwitches', nt.ULONG),
+      ('FindAny',         nt.ULONG),
+      ('FindLast',        nt.ULONG),
+      ('FindIdeal',       nt.ULONG),
+      ('IdleAny',         nt.ULONG),
+      ('IdleCurrent',     nt.ULONG),
+      ('IdleLast',        nt.ULONG),
+      ('IdleIdeal',       nt.ULONG),
+      ('PreemptAny',      nt.ULONG),
+      ('PreemptCurrent',  nt.ULONG),
+      ('PreemptLast',     nt.ULONG),
+      ('SwitchToIdle',    nt.ULONG),
+   )
+
+class SYSTEM_REGISTRY_QUOTA_INFORMATION(nt.CStruct):
+   _fields_ = ( # x86 = 12, x64 = 16
+      ('RegistryQuotaAllowed', nt.ULONG),
+      ('RegistryQuotaUsed',    nt.ULONG),
+      ('PagedPoolSize',        nt.SIZE_T),
    )
 # ====================================================================================
 NtQuerySystemInformation.restype  = nt.NTSTATUS
