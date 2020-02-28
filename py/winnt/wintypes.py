@@ -1,5 +1,6 @@
 from ctypes import (
-   POINTER, Structure, Union, c_char, c_byte, c_long, c_longlong, c_short, c_size_t, c_ubyte, c_ulong, c_ulonglong, c_ushort, c_void_p, c_wchar_p, sizeof
+   POINTER, Structure, Union, c_char, c_byte, c_long, c_longlong, c_short, c_size_t,
+   c_ubyte, c_ulong, c_ulonglong, c_ushort, c_void_p, c_wchar, c_wchar_p, sizeof
 )
 from enum   import IntEnum
 # ====================================================================================
@@ -7,7 +8,7 @@ ACCESS_MASK = DWORD = ULONG = c_ulong
 CCHAR       = CHAR      = c_char
 CSHORT      = SHORT     = c_short
 BOOLEAN     = BYTE      = c_byte
-HANDLE      = HLOCAL    = LPCVOID  = LPVOID = PVOID = va_list = c_void_p
+HANDLE      = HLOCAL    = LPCVOID  = PVOID = va_list = c_void_p
 LONG        = KPRIORITY = NTSTATUS = c_long
 LONGLONG    = c_longlong
 PWSTR       = c_wchar_p
@@ -16,6 +17,7 @@ ULONGLONG   = c_ulonglong
 ULONG_PTR   = c_ulonglong if 8 == sizeof(c_void_p) else c_ulong
 UCHAR       = c_ubyte
 USHORT      = c_ushort
+WCHAR       = c_wchar
 # ====================================================================================
 PCHAR  = PSTR = POINTER(CHAR)
 PULONG = POINTER(ULONG)
@@ -57,6 +59,18 @@ class LARGE_INTEGER(Union):
       ('u1',       LARGE_INTEGER_UNION),
       ('u2',       LARGE_INTEGER_UNION),
       ('QuadPart', LONGLONG),
+   )
+
+class TIME_FIELDS(Structure):
+   _fields_ = (
+      ('Year',         CSHORT),
+      ('Month',        CSHORT),
+      ('Day',          CSHORT),
+      ('Hour',         CSHORT),
+      ('Minute',       CSHORT),
+      ('Second',       CSHORT),
+      ('Milliseconds', CSHORT),
+      ('Weekday',      CSHORT),
    )
 
 class UNICODE_STRING(Structure):

@@ -46,18 +46,18 @@ SYSTEM_INFORMATION_CLASS = IntEnum('SYSTEM_INFORMATION_CLASS', (
    'SystemKernelDebuggerInformation', # q: SYSTEM_KERNEL_DEBUGGER_INFORMATION
    'SystemContextSwitchInformation', # q: SYSTEM_CONTEXT_SWITCH_INFORMATION
    'SystemRegistryQuotaInformation', # q: SYSTEM_REGISTRY_QUOTA_INFORMATION, s: SeIncreaseQuotaPrivilege
-   'SystemExtendServiceTableInformation',
-   'SystemPrioritySeperation',
-   'SystemVerifierAddDriverInformation',
-   'SystemVerifierRemoveDriverInformation',
-   'SystemProcessorIdleInformation',
-   'SystemLegacyDriverInformation',
-   'SystemCurrentTimeZoneInformation',
-   'SystemLookasideInformation',
-   'SystemTimeSlipNotification',
+   'SystemExtendServiceTableInformation', # s: SeLoadDriverPrivilege (loads win32k.sys)
+   'SystemPrioritySeperation', # s: SeTcbPrivilege
+   'SystemVerifierAddDriverInformation', # s: SeDebugPrivilege
+   'SystemVerifierRemoveDriverInformation', # s: SeDebugPrivilege
+   'SystemProcessorIdleInformation', # q: SYSTEM_PROCESSOR_IDLE_INFORMATION
+   'SystemLegacyDriverInformation', # q: SYSTEM_LEGACY_DRIVER_INFORMATION
+   'SystemCurrentTimeZoneInformation', # q: RTL_TIME_ZONE_INFORMATION
+   'SystemLookasideInformation', # q: SYSTEM_LOOKASIDE_INFORMATION
+   'SystemTimeSlipNotification', # s: SeSystemPrivilege
    'SystemSessionCreate', # r: STATUS_NOT_IMPLEMENTED
    'SystemSessionDetach', # r: STATUS_NOT_IMPLEMENTED
-   'SystemSessionInformation', # r: STATUS_NOT_IMPLEMENTED, q: SYSTEM_SESSION_INFORMATION
+   'SystemSessionInformation', # r: STATUS_NOT_IMPLEMENTED
    'SystemRangeStartInformation',
    'SystemVerifierInformation',
    'SystemVerifierThunkExtend',
@@ -682,6 +682,37 @@ class SYSTEM_REGISTRY_QUOTA_INFORMATION(nt.CStruct):
       ('RegistryQuotaAllowed', nt.ULONG),
       ('RegistryQuotaUsed',    nt.ULONG),
       ('PagedPoolSize',        nt.SIZE_T),
+   )
+
+class SYSTEM_PROCESSOR_IDLE_INFORMATION(nt.CStruct):
+   _fields_ = ( # x86 = x64 = 48
+      ('IdleTime',      nt.ULONGLONG),
+      ('C1Time',        nt.ULONGLONG),
+      ('C2Time',        nt.ULONGLONG),
+      ('C3Time',        nt.ULONGLONG),
+      ('C1Transitions', nt.ULONG),
+      ('C2Transitions', nt.ULONG),
+      ('C3Transitions', nt.ULONG),
+      ('Padding',       nt.ULONG),
+   )
+
+class SYSTEM_LEGACY_DRIVER_INFORMATION(nt.CStruct):
+   _fields_ = ( # x86 = 12, x64 = 24
+      ('VetoType', nt.ULONG),
+      ('VetoList', nt.UNICODE_STRING),
+   )
+
+class SYSTEM_LOOKASIDE_INFORMATION(nt.CStruct):
+   _fields_ = ( # x86 = x64 = 32
+      ('CurrentDepth',   nt.USHORT),
+      ('MaximumDepth',   nt.USHORT),
+      ('TotalAllocates', nt.ULONG),
+      ('AllocateMisses', nt.ULONG),
+      ('TotalFrees',     nt.ULONG),
+      ('FreeMisses',     nt.ULONG),
+      ('Type',           nt.ULONG),
+      ('Tag',            nt.ULONG),
+      ('Size',           nt.ULONG),
    )
 # ====================================================================================
 NtQuerySystemInformation.restype  = nt.NTSTATUS
