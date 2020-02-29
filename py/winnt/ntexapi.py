@@ -58,32 +58,32 @@ SYSTEM_INFORMATION_CLASS = IntEnum('SYSTEM_INFORMATION_CLASS', (
    'SystemSessionCreate', # r: STATUS_NOT_IMPLEMENTED
    'SystemSessionDetach', # r: STATUS_NOT_IMPLEMENTED
    'SystemSessionInformation', # r: STATUS_NOT_IMPLEMENTED
-   'SystemRangeStartInformation',
-   'SystemVerifierInformation',
-   'SystemVerifierThunkExtend',
-   'SystemSessionProcessInformation',
-   'SystemLoadGdiDriverInSystemSpace',
-   'SystemNumaProcessorMap',
-   'SystemPrefetcherInformation',
-   'SystemExtendedProcessInformation',
-   'SystemRecommendedSharedDataAlignment',
-   'SystemComPlusPackage',
-   'SystemNumaAvailableMemory',
-   'SystemProcessorPowerInformation',
-   'SystemEmulationBasicInformation',
-   'SystemEmulationProcessorInformation',
-   'SystemExtendedHandleInformation',
-   'SystemLostDelayedWriteInformation',
-   'SystemBigPoolInformation',
-   'SystemSessionPoolTagInformation',
-   'SystemSessionMappedViewInformation',
-   'SystemHotpatchInformation',
-   'SystemObjectSecurityMode',
-   'SystemWatchdogTimerHandler',
-   'SystemWatchdogTimerInformation',
-   'SystemLogicalProcessorInformation',
+   'SystemRangeStartInformation', # q: SYSTEM_RANGE_START_INFORMATION
+   'SystemVerifierInformation', # q: SYSTEM_VERIFIER_INFORMATION, s: SeDebugPrivilege
+   'SystemVerifierThunkExtend', # kernel-mode
+   'SystemSessionProcessInformation', # q: SYSTEM_SESSION_PROCESS_INFORMATION
+   'SystemLoadGdiDriverInSystemSpace', # kernel-mode (same as SystemLoadGdiDriverInformation)
+   'SystemNumaProcessorMap', # q: SYSTEM_NUMA_INFORMATION
+   'SystemPrefetcherInformation', # q: PREFETCHER_INFORMATION
+   'SystemExtendedProcessInformation', # q: SYSTEM_PROCESS_INFORMATION
+   'SystemRecommendedSharedDataAlignment', # q: ?
+   'SystemComPlusPackage', # q: ?
+   'SystemNumaAvailableMemory', # q: SYSTEM_NUMA_INFORMATION
+   'SystemProcessorPowerInformation', # q: SYSTEM_PROCESSOR_POWER_INFORMATION
+   'SystemEmulationBasicInformation', # q: SYSTEM_BASIC_INFORMATION ?
+   'SystemEmulationProcessorInformation', # q: SYSTEM_PROCESSOR_INFORMATION ?
+   'SystemExtendedHandleInformation', # q: SYSTEM_HANDLE_INFORMATION_EX
+   'SystemLostDelayedWriteInformation', # q: ULONG
+   'SystemBigPoolInformation', # q: SYSTEM_BIGPOOL_INFORMATION
+   'SystemSessionPoolTagInformation', # q: SYSTEM_SESSION_POOLTAG_INFORMATION
+   'SystemSessionMappedViewInformation', # q: SYSTEM_SESSION_MAPPED_VIEW_INFORMATION
+   'SystemHotpatchInformation', # q: SYSTEM_HOTPATCH_CODE_INFORMATION
+   'SystemObjectSecurityMode', # q: ULONG
+   'SystemWatchdogTimerHandler', # kernel-mode
+   'SystemWatchdogTimerInformation', # kernel-mode
+   'SystemLogicalProcessorInformation', # SYSTEM_LOGICAL_PROCESSOR_INFORMATION
    'SystemWow64SharedInformationObsolete', # r: STATUS_NOT_IMPLEMENTED
-   'SystemRegisterFirmwareTableInformationHandler',
+   'SystemRegisterFirmwareTableInformationHandler', # kernel-mode
    'SystemFirmwareTableInformation',
    'SystemModuleInformationEx',
    'SystemVerifierTriageInformation', # r: STATUS_NOT_IMPLEMENTED
@@ -122,7 +122,7 @@ SYSTEM_INFORMATION_CLASS = IntEnum('SYSTEM_INFORMATION_CLASS', (
    'SystemAitSamplingValue',
    'SystemVhdBootInformation',
    'SystemCpuQuotaInformation',
-   'SystemNativeBasicInformation', # r: STATUS_NOT_IMPLEMENTED
+   'SystemNativeBasicInformation', # r: STATUS_NOT_IMPLEMENTED, q: SYSTEM_BASIC_INFORMATION ?
    'SystemErrorPortTimeouts', # r: STATUS_NOT_IMPLEMENTED
    'SystemLowPriorityIoInformation',
    'SystemBootEntropyInformation',
@@ -714,6 +714,184 @@ class SYSTEM_LOOKASIDE_INFORMATION(nt.CStruct):
       ('Tag',            nt.ULONG),
       ('Size',           nt.ULONG),
    )
+
+class SYSTEM_RANGE_START_INFORMATION(nt.CStruct):
+   _fields_ = ( # x86 = 4, x64 = 8
+      ('SystemRangeStart', nt.PVOID),
+   )
+
+class SYSTEM_VERIFIER_INFORMATION(nt.CStruct):
+   _fields_ = ( # x86 = 120, x64 = 144
+      ('NextEntryOffset',                 nt.ULONG),
+      ('Level',                           nt.ULONG),
+      ('RuleClasses',                     nt.ULONG * 2),
+      ('TriageContext',                   nt.ULONG),
+      ('AreAllDriversBeingVerified',      nt.ULONG),
+      ('DriverName',                      nt.UNICODE_STRING),
+      ('RaiseIrqls',                      nt.ULONG),
+      ('AcquireSpinLocks',                nt.ULONG),
+      ('SynchronizeExecutions',           nt.ULONG),
+      ('AllocationsAttempted',            nt.ULONG),
+      ('AllocationsSucceeded',            nt.ULONG),
+      ('AllocationsSucceededSpecialPool', nt.ULONG),
+      ('AllocationsWithNoTag',            nt.ULONG),
+      ('TrimRequests',                    nt.ULONG),
+      ('Trims',                           nt.ULONG),
+      ('AllocationsFailed',               nt.ULONG),
+      ('AllocationsFailedDeliberately',   nt.ULONG),
+      ('Loads',                           nt.ULONG),
+      ('Unloads',                         nt.ULONG),
+      ('UnTrackedPool',                   nt.ULONG),
+      ('CurrentPagedPoolAllocations',     nt.ULONG),
+      ('CurrentNonPagedPoolAllocations',  nt.ULONG),
+      ('PeakPagedPoolAllocations',        nt.ULONG),
+      ('PeakNonPagedPoolAllocations',     nt.ULONG),
+      ('PagedPoolUsageInBytes',           nt.SIZE_T),
+      ('NonPagedPoolUsageInBytes',        nt.SIZE_T),
+      ('PeakPagedPoolUsageInBytes',       nt.SIZE_T),
+      ('PeakNonPagedPoolUsageInBytes',    nt.SIZE_T),
+   )
+
+class SYSTEM_SESSION_PROCESS_INFORMATION(nt.CStruct):
+   _fields_ = ( # x86 = 12, x64 = 16
+      ('SessionId', nt.ULONG),
+      ('SizeOfBuf', nt.ULONG),
+      ('Buffer',    nt.PVOID),
+   )
+
+class SYSTEM_NUMA_INFORMATION_UNION(Union):
+   _fields_ = (
+      ('ActiveProcessorsGroupAffinity', nt.GROUP_AFFINITY * 64),
+      ('AvailableMemory',               nt.ULONGLONG * 64),
+      ('Pad',                           nt.ULONGLONG * 128),
+   )
+
+class SYSTEM_NUMA_INFORMATION(nt.CStruct):
+   _fields_ = ( # x86 = 264, x64 = 1032
+      ('HighestNodeNumber', nt.ULONG),
+      ('Reserved',          nt.ULONG),
+      ('MaximumNodeCount',  SYSTEM_NUMA_INFORMATION_UNION),
+   )
+
+class SYSTEM_PROCESSOR_POWER_INFORMATION(nt.CStruct):
+   _fields_ = ( # x86 = x64 = 80
+      ('CurrentFrequency',          nt.UCHAR),
+      ('ThermalLimitFrequency',     nt.UCHAR),
+      ('ConstantThrottleFrequency', nt.UCHAR),
+      ('DegradedThrottleFrequency', nt.UCHAR),
+      ('LastBusyFrequency',         nt.UCHAR),
+      ('LastC3Frequency',           nt.UCHAR),
+      ('LastAdjustedBusyFrequency', nt.UCHAR),
+      ('ProcessorMinThrottle',      nt.UCHAR),
+      ('ProcessorMaxThrottle',      nt.UCHAR),
+      ('NumberOfFrequencies',       nt.ULONG),
+      ('PromotionCount',            nt.ULONG),
+      ('DemotionCount',             nt.ULONG),
+      ('ErrorCount',                nt.ULONG),
+      ('RetryCount',                nt.ULONG),
+      ('CurrentFrequencyTime',      nt.ULONGLONG),
+      ('CurrentProcessorTime',      nt.ULONGLONG),
+      ('CurrentProcessorIdleTime',  nt.ULONGLONG),
+      ('LastProcessorTime',         nt.ULONGLONG),
+      ('LastProcessorIdleTime',     nt.ULONGLONG),
+      ('Energy',                    nt.ULONGLONG),
+   )
+
+class SYSTEM_HANDLE_TABLE_ENTRY_INFO_EX(nt.CStruct):
+   _fields_ = ( # x86 = 28, x64 = 40
+      ('Object',                nt.PVOID),
+      ('UniqueProcessId',       nt.ULONG_PTR),
+      ('HandleValue',           nt.ULONG_PTR),
+      ('GrantedAccess',         nt.ULONG),
+      ('CreatorBackTraceIndex', nt.USHORT),
+      ('ObjectTypeIndex',       nt.USHORT),
+      ('HandleAttributes',      nt.ULONG),
+      ('Reserved',              nt.ULONG),
+   )
+
+class SYSTEM_HANDLE_INFORMATION_EX(nt.CStruct):
+   _fields_ = ( # x86 = 36, x64 = 56
+      ('NumberOfHandles', nt.ULONG_PTR),
+      ('Reserved',        nt.ULONG_PTR),
+      ('Handles',         SYSTEM_HANDLE_TABLE_ENTRY_INFO_EX * 1),
+   )
+
+class SYSTEM_BIGPOOL_ENTRY_MEMORY(Union):
+   _fields_ = (
+      ('VirtualAddress', nt.PVOID),
+      ('NonPaged',       nt.ULONG_PTR, 1),
+   )
+
+class SYSTEM_BIGPOOL_ENTRY_TAG(Union):
+   _fields_ = (
+      ('Tag',      nt.UCHAR * 4),
+      ('TagUlong', nt.ULONG),
+   )
+
+class SYSTEM_BIGPOOL_ENTRY(nt.CStruct):
+   _fields_ = ( # x86 = 12, x64 = 24
+      ('Memory',      SYSTEM_BIGPOOL_ENTRY_MEMORY),
+      ('SizeInBytes', nt.SIZE_T),
+      ('Tag',         SYSTEM_BIGPOOL_ENTRY_TAG),
+   )
+
+class SYSTEM_BIGPOOL_INFORMATION(nt.CStruct):
+   _fields_ = ( # x86 = 16, x64 = 32
+      ('Count',         nt.ULONG),
+      ('AllocatedInfo', SYSTEM_BIGPOOL_ENTRY * 1),
+   )
+
+class SYSTEM_POOLTAG_TAG(Union):
+   _fields_ = (
+      ('Tag',      nt.UCHAR * 4),
+      ('TagUlong', nt.ULONG),
+   )
+
+class SYSTEM_POOLTAG(nt.CStruct):
+   _fields_ = ( # x86 = 28, x64 = 40
+      ('Tag',            SYSTEM_POOLTAG_TAG),
+      ('PagedAllocs',    nt.ULONG),
+      ('PagedFrees',     nt.ULONG),
+      ('PagedUsed',      nt.SIZE_T),
+      ('NonPagedAllocs', nt.ULONG),
+      ('NonPagedFrees',  nt.ULONG),
+      ('NonPagedUsed',   nt.SIZE_T),
+   )
+
+class SYSTEM_SESSION_POOLTAG_INFORMATION(nt.CStruct):
+   _fields_ = ( # x86 = 40, x64 = 56
+      ('NextEntryOffset', nt.SIZE_T),
+      ('SessionId',       nt.ULONG),
+      ('Count',           nt.ULONG),
+      ('TagInfo',         SYSTEM_POOLTAG),
+   )
+
+class SYSTEM_SESSION_MAPPED_VIEW_INFORMATION(nt.CStruct):
+   _fields_ = ( # x86 = 20, x64 = 32
+      ('NextEntryOffset',                  nt.SIZE_T),
+      ('SessionId',                        nt.ULONG),
+      ('ViewFailures',                     nt.ULONG),
+      ('NumberOfBytesAvailable',           nt.SIZE_T),
+      ('NumberOfBytesAvailableContiguous', nt.SIZE_T),
+   )
+
+class SYSTEM_LOGICAL_PROCESSOR_INFORMATION_UNION(Union):
+   _fields_ = (
+      ('ProcessorCore', nt.PROCESSORCORE),
+      ('NumaNode',      nt.NUMANODE),
+      ('Cache',         nt.CACHE_DESCRIPTOR),
+      ('Reserved',      nt.ULONGLONG * 2),
+   )
+
+class SYSTEM_LOGICAL_PROCESSOR_INFORMATION(nt.CStruct):
+   _fields_ = ( # x86 = 24, x64 = 32
+      ('ProcessorMask', nt.ULONG_PTR),
+      ('_Relationship', nt.ULONG_PTR),
+      ('ProcessorInfo', SYSTEM_LOGICAL_PROCESSOR_INFORMATION_UNION),
+   )
+   @property
+   def Relationship(self):
+      return nt.LOGICAL_PROCESSOR_RELATIONSHIP(self._Relationship).name if self._Relationship else None
 # ====================================================================================
 NtQuerySystemInformation.restype  = nt.NTSTATUS
 NtQuerySystemInformation.argtypes = [SYSTEM_INFORMATION_CLASS, nt.PVOID, nt.ULONG, nt.PULONG]

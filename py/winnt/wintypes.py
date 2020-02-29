@@ -4,19 +4,19 @@ from ctypes import (
 )
 from enum   import IntEnum
 # ====================================================================================
-ACCESS_MASK = DWORD = ULONG = c_ulong
+ACCESS_MASK = DWORD     = ULONG = c_ulong
 CCHAR       = CHAR      = c_char
 CSHORT      = SHORT     = c_short
 BOOLEAN     = BYTE      = c_byte
 HANDLE      = HLOCAL    = LPCVOID  = PVOID = va_list = c_void_p
+KAFFINITY   = ULONG_PTR = c_ulonglong if 8 == sizeof(c_void_p) else c_ulong
 LONG        = KPRIORITY = NTSTATUS = c_long
 LONGLONG    = c_longlong
 PWSTR       = c_wchar_p
 SIZE_T      = c_size_t
 ULONGLONG   = c_ulonglong
-ULONG_PTR   = c_ulonglong if 8 == sizeof(c_void_p) else c_ulong
 UCHAR       = c_ubyte
-USHORT      = c_ushort
+USHORT      = WORD      = c_ushort
 WCHAR       = c_wchar
 # ====================================================================================
 PCHAR  = PSTR = POINTER(CHAR)
@@ -34,6 +34,34 @@ class CStruct(Structure):
    def size(self):
       return ULONG(sizeof(self))
 # ====================================================================================
+LOGICAL_PROCESSOR_RELATIONSHIP = IntEnum('LOGICAL_PROCESSOR_RELATIONSHIP', (
+   'RelationProcessorCore',
+   'RelationNumaNode',
+   'RelationCache',
+   'RelationProcessorPackage',
+   'RelationGroup',
+   'RelationAll', # 0xffff
+), start=0)
+
+PROCESSOR_CACHE_TYPE = IntEnum('PROCESSOR_CACHE_TYPE', (
+   'CacheUnified',
+   'CacheInstruction',
+   'CacheData',
+   'CacheTrace',
+), start=0)
+# ====================================================================================
+class CACHE_DESCRIPTOR(Structure):
+   _fields_ = (
+      ('Level',         BYTE),
+      ('Associativity', BYTE),
+      ('LineSize',      WORD),
+      ('Size',          DWORD),
+      ('_Type',         DWORD),
+   )
+   @property
+   def Type(self):
+      return PROCESSOR_CACHE_TYPE(self._Type).name if self._Type else None
+
 class CLIENT_ID(Structure):
    _fields_ = (
       ('UniqueProcess', HANDLE),
@@ -48,6 +76,13 @@ class GENERIC_MAPPING(Structure):
       ('GenericAll',     ACCESS_MASK)
    )
 
+class GROUP_AFFINITY(Structure):
+   _fields_ = (
+      ('Mask',     KAFFINITY),
+      ('Group',    USHORT),
+      ('Reserved', USHORT * 3),
+   )
+
 class LARGE_INTEGER_UNION(Structure):
    _fields_ = (
       ('LowPart',  ULONG),
@@ -59,6 +94,16 @@ class LARGE_INTEGER(Union):
       ('u1',       LARGE_INTEGER_UNION),
       ('u2',       LARGE_INTEGER_UNION),
       ('QuadPart', LONGLONG),
+   )
+
+class NUMANODE(Structure):
+   _fields_ = (
+      ('NodeNumber', ULONG),
+   )
+
+class PROCESSORCORE(Structure):
+   _fields_ = (
+      ('Flags', BYTE),
    )
 
 class TIME_FIELDS(Structure):
