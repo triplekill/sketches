@@ -80,14 +80,14 @@ SYSTEM_INFORMATION_CLASS = IntEnum('SYSTEM_INFORMATION_CLASS', (
    'SystemHotpatchInformation', # q: SYSTEM_HOTPATCH_CODE_INFORMATION
    'SystemObjectSecurityMode', # q: ULONG
    'SystemWatchdogTimerHandler', # kernel-mode
-   'SystemWatchdogTimerInformation', # kernel-mode
+   'SystemWatchdogTimerInformation', # kernel-mode, q: SYSTEM_WATCHDOG_TIMER_INFORMATION
    'SystemLogicalProcessorInformation', # SYSTEM_LOGICAL_PROCESSOR_INFORMATION
    'SystemWow64SharedInformationObsolete', # r: STATUS_NOT_IMPLEMENTED
    'SystemRegisterFirmwareTableInformationHandler', # kernel-mode
-   'SystemFirmwareTableInformation',
-   'SystemModuleInformationEx',
+   'SystemFirmwareTableInformation', # q: SYSTEM_FIRMWARE_TABLE_INFORMATION
+   'SystemModuleInformationEx', # q: RTL_PROCESS_MODULE_INFORMATION_EX
    'SystemVerifierTriageInformation', # r: STATUS_NOT_IMPLEMENTED
-   'SystemSuperfetchInformation',
+   'SystemSuperfetchInformation', # q: SUPERFETCH_INFORMATION
    'SystemMemoryListInformation',
    'SystemFileCacheInformationEx',
    'SystemThreadPriorityClientIdInformation',
@@ -875,6 +875,25 @@ class SYSTEM_SESSION_MAPPED_VIEW_INFORMATION(nt.CStruct):
       ('NumberOfBytesAvailableContiguous', nt.SIZE_T),
    )
 
+WATCHDOG_INFORMATION_CLASS = IntEnum('WATCHDOG_INFORMATION_CLASS', (
+   'WdInfoTimeoutValue',
+   'WdInfoResetTimer',
+   'WdInfoStopTimer',
+   'WdInfoStartTimer',
+   'WdInfoTriggerAction',
+   'WdInfoState',
+   'WdInfoTriggerReset',
+   'WdInfoNop',
+   'WdInfoGeneratedLastReset',
+   'WdInfoInvalid',
+), start=0)
+
+class SYSTEM_WATCHDOG_TIMER_INFORMATION(nt.CStruct):
+   _fields_ = ( # x86 = x64 = 8
+      ('WdInfoClass', nt.ULONG), # WATCHDOG_INFORMATION_CLASS (kernel-mode)
+      ('DataValue',   nt.ULONG),
+   )
+
 class SYSTEM_LOGICAL_PROCESSOR_INFORMATION_UNION(Union):
    _fields_ = (
       ('ProcessorCore', nt.PROCESSORCORE),
@@ -892,6 +911,23 @@ class SYSTEM_LOGICAL_PROCESSOR_INFORMATION(nt.CStruct):
    @property
    def Relationship(self):
       return nt.LOGICAL_PROCESSOR_RELATIONSHIP(self._Relationship).name if self._Relationship else None
+
+SYSTEM_FIRMWARE_TABLE_ACTION = IntEnum('SYSTEM_FIRMWARE_TABLE_ACTION', (
+   'SystemFirmwareTable_Enumerate',
+   'SystemFirmwareTable_Get',
+), start=0)
+
+class SYSTEM_FIRMWARE_TABLE_INFORMATION(nt.CStruct):
+   _fields_ = ( # x86 = x64 = 20
+      ('ProviderSignature', nt.ULONG),
+      ('_Action',           nt.ULONG),
+      ('TableID',           nt.ULONG),
+      ('TableBufferLength', nt.ULONG),
+      ('TableBuffer',       nt.UCHAR * 1),
+   )
+   @property
+   def Action(self):
+      return SYSTEM_FIRMWARE_TABLE_ACTION(self._Action).name if self._Action else None
 # ====================================================================================
 NtQuerySystemInformation.restype  = nt.NTSTATUS
 NtQuerySystemInformation.argtypes = [SYSTEM_INFORMATION_CLASS, nt.PVOID, nt.ULONG, nt.PULONG]

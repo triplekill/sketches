@@ -19,3 +19,12 @@ class RTL_PROCESS_MODULES(nt.CStruct):
       ('NumberOfModules', nt.ULONG),
       ('Modules',         RTL_PROCESS_MODULE_INFORMATION * 1)
    )
+
+class RTL_PROCESS_MODULE_INFORMATION_EX(nt.CStruct):
+   _fields_ = ( # x86 = 300, x64 = 320
+      ('NextOffset',    nt.USHORT),
+      ('BaseInfo',      RTL_PROCESS_MODULE_INFORMATION),
+      ('ImageChecksum', nt.ULONG),
+      ('TimeDateStamp', nt.ULONG),
+      ('DefaultBase',   nt.PVOID),
+   )
