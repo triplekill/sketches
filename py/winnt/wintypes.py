@@ -14,8 +14,8 @@ LONG        = KPRIORITY = NTSTATUS = c_long
 LONGLONG    = c_longlong
 PWSTR       = c_wchar_p
 SIZE_T      = c_size_t
-ULONGLONG   = c_ulonglong
 UCHAR       = c_ubyte
+ULONGLONG   = c_ulonglong
 USHORT      = WORD      = c_ushort
 WCHAR       = c_wchar
 # ====================================================================================
