@@ -28,6 +28,6 @@ if {[catch {binary scan [registry get $key InstallTime] ii l h}]} {
   err InstallTime ; # REG_QWORD
 }
 
-puts [clock format [expr ( \
+puts [clock format [expr int(( \
   ([uint_t $h] << 32 | [uint_t $l]) - $epoch \
-) / $nano] -format {%m-%d-%Y %H:%M:%S}]
+) / $nano)] -format {%m-%d-%Y %H:%M:%S}]
