@@ -17,7 +17,7 @@ set status [
 proc getstatus {value item} {
   global HKLM key status
   if {[catch {set tmp [registry get "$HKLM\\$key" $value]} e]} {
-    puts stderr [concat "\[Error\]:" [lindex [split $e :] 0]]
+    puts stderr [format "\[Error\]: %s" [lindex [split $e :] 0]]
     exit 1
   }
   puts "$item is [dict get $status $tmp]."
