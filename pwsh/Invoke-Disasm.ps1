@@ -99,6 +99,10 @@ function New-Structure {
     [ScriptBlock]$Definition,
 
     [Parameter()]
+    [ValidateSet(
+      'Unspecified', 'Size1', 'Size2', 'Size4', 'Size8', 'Size16', 'Size32', 'Size64', 'Size128'
+    )]
+    [ValidateNotNullOrEmpty()]
     [PackingSize]$PackingSize = 'Unspecified',
 
     [Parameter()]
@@ -112,13 +116,11 @@ function New-Structure {
 
   begin {
     [TypeAttributes]$attr = 'BeforeFieldInit, Class, Public, Sealed'
-    $attr = ($attr -bor [TypeAttributes]::"$(
-      ('Sequential', 'Explicit')[[Boolean]$Explicit]
-    )Layout") -bor [TypeAttributes]::"$($CharSet)Class"
+    $attr = $attr -bor ($Explicit.IsPresent ? 'Explicit' : 'Sequential') -bor "$($CharSet)Class"
   }
   process {}
   end {
-    if (!($struct = ($pmb = Get-PwshModuleBuilder).GetType($Name))) {
+    if (!($pmb = Get-PwshModuleBuilder).GetType($Name)) {
       $type = $pmb.DefineType($Name, $attr, [ValueType], $PackingSize)
       $ctor = [MarshalAsAttribute].GetConstructor(
         [BindingFlags]'Instance, Public', $null, [Type[]]@([UnmanagedType]), $null
@@ -127,7 +129,7 @@ function New-Structure {
 
       $Definition.Ast.FindAll({$args[0].CommandElements}, $true).ToArray().ForEach{
         $ftype, $fdesc = $_.CommandElements.Value
-        $ftype = ($defined, [Type]$ftype)[!($defined = $pmb.GetType($ftype))]
+        $ftype = $pmb.GetType($Name) ?? [Type]$ftype
         $fdesc = @(($fdesc -split '\s+?').Where{$_}) # field, params ...
         switch ($fdesc.Length) {
           1 { [void]$type.DefineField($fdesc[0], $ftype, 'Public') }
@@ -136,7 +138,7 @@ function New-Structure {
               ).SetCustomAttribute([CustomAttributeBuilder]::new($ctor, [Object]@($unm)))
             },{
               [void]$type.DefineField($fdesc[0], $ftype, 'Public').SetOffset([Int32]$fdesc[1])
-            })[[Boolean]$Explicit]
+            })[$Explicit.IsPresent]
           }
           3 {
             $unm = [UnmanagedType]$fdesc[1]
