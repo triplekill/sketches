@@ -314,7 +314,7 @@ function Invoke-Disasm {
       $major, $minor = 0, 0
       [void]$capstone.cs_version.Invoke([ref]$major, [ref]$minor)
       'Capstone Disassembler Engine v{0}.{1}' -f $major, $minor
-    })[[Boolean]$Version]
+    })[$Version.IsPresent]
 
     if ($capstonedll -and $capstonedll -ne [IntPtr]::Zero) {
       if (!$kernel32.FreeLibrary.Invoke($capstonedll)) {
