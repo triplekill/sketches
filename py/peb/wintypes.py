@@ -5,6 +5,7 @@ __all__ = (
   'PROCESS_VM_READ',
   'ProcessBasicInformation',
   'CloseHandle',
+  'GetCurrentProcess',
   'NtQueryInformationProcess',
   'OpenProcess',
   'ReadProcessMemory',
@@ -53,6 +54,10 @@ CloseHandle.argtypes = [HANDLE]
 FormatMessage          = windll.kernel32.FormatMessageW
 FormatMessage.restype  = DWORD
 FormatMessage.argtypes = [DWORD, LPCVOID, DWORD, DWORD, HLOCAL, DWORD, va_list]
+
+GetCurrentProcess          = windll.kernel32.GetCurrentProcess
+GetCurrentProcess.restype  = HANDLE
+GetCurrentProcess.argtypes = []
 
 GetLastError          = windll.kernel32.GetLastError
 GetLastError.restype  = DWORD
@@ -421,5 +426,5 @@ def GetWin32Error() -> DWORD:
    return GetLastError()
 
 @getlasterror
-def GetNtError(nts', NTSTATUS) -> DWORD:
+def GetNtError(nts, NTSTATUS) -> DWORD:
    return RtlNtStatusToDosError(nts)
