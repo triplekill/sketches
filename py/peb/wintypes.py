@@ -4,6 +4,7 @@ __all__ = (
   'PROCESS_QUERY_INFORMATION',
   'PROCESS_VM_READ',
   'ProcessBasicInformation',
+  'STATUS_SUCCESS',
   'CloseHandle',
   'GetCurrentProcess',
   'NtQueryInformationProcess',
@@ -46,6 +47,7 @@ SUBLANG_DEFAULT                = DWORD(0x00000001).value
 PROCESS_QUERY_INFORMATION      = DWORD(0x00000400).value
 PROCESS_VM_READ                = DWORD(0x00000010).value
 ProcessBasicInformation        = ULONG(0x00000000).value
+STATUS_SUCCESS                 = NTSTATUS(0x00000000).value
 # ====================================================================================
 CloseHandle          = windll.kernel32.CloseHandle
 CloseHandle.restype  = BOOL
@@ -426,5 +428,5 @@ def GetWin32Error() -> DWORD:
    return GetLastError()
 
 @getlasterror
-def GetNtError(nts, NTSTATUS) -> DWORD:
+def GetNtError(nts : NTSTATUS) -> DWORD:
    return RtlNtStatusToDosError(nts)
