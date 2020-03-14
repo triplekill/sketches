@@ -6,6 +6,7 @@
 
 #include <windows.h>
 
+typedef LONG KPRIORITY;
 typedef LONG NTSTATUS;
 
 // PEB (Win10)
