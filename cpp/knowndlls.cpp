@@ -37,10 +37,12 @@ typedef struct _OBJECT_ATTRIBUTES {
 
 typedef NTSTATUS (__stdcall *pNtOpenDirectoryObject)(PHANDLE, ACCESS_MASK, POBJECT_ATTRIBUTES);
 typedef NTSTATUS (__stdcall *pNtQueryDirectoryObject)(HANDLE, PVOID, ULONG, BOOLEAN, BOOLEAN, PULONG, PULONG);
+typedef VOID     (__stdcall *pRtlInitUnicodeString)(PUNICODE_STRING, PCWSTR);
 typedef ULONG    (__stdcall *pRtlNtStatusToDosError)(NTSTATUS);
 
 pNtOpenDirectoryObject NtOpenDirectoryObject;
 pNtQueryDirectoryObject NtQueryDirectoryObject;
+pRtlInitUnicodeString RtlInitUnicodeString;
 pRtlNtStatusToDosError RtlNtStatusToDosError;
 
 #define InitializeObjectAttributes(p, n, a, r, s) { \
@@ -58,6 +60,9 @@ BOOLEAN LocateSignatures(void) {
 
   NtQueryDirectoryObject = AddrToFunc(pNtQueryDirectoryObject);
   if (nullptr == NtQueryDirectoryObject) return FALSE;
+
+  RtlInitUnicodeString = AddrToFunc(pRtlInitUnicodeString);
+  if (nullptr == RtlInitUnicodeString) return FALSE;
 
   RtlNtStatusToDosError = AddrToFunc(pRtlNtStatusToDosError);
   if (nullptr == RtlNtStatusToDosError) return FALSE;
@@ -96,7 +101,9 @@ int wmain(void) {
   }
 
   OBJECT_ATTRIBUTES oa;
-  UNICODE_STRING path = {20, 20, L"\\KnownDlls"};
+  //UNICODE_STRING path = {20, 22, L"\\KnownDlls"};
+  UNICODE_STRING path;
+  RtlInitUnicodeString(&path, L"\\KnownDlls");
   InitializeObjectAttributes(&oa, &path, 0, nullptr, nullptr);
 
   HANDLE hndl{};
@@ -110,16 +117,11 @@ int wmain(void) {
 
   ULONG bsz = 0x100, items = 0, bytes = 0;
   std::vector<OBJECT_DIRECTORY_INFORMATION> buf(bsz);
-  while (STATUS_MORE_ENTRIES == (nts = NtQueryDirectoryObject(
+  while (STATUS_MORE_ENTRIES == NtQueryDirectoryObject(
     KnownDlls.get(), &buf[0], bsz, FALSE, TRUE, &items, &bytes
-  ))) {
+  )) {
     bsz += bytes;
     buf.resize(bsz);
-  }
-
-  if (!NT_SUCCESS(nts)) {
-    PrintErrMessage(nts);
-    return 1;
   }
 
   std::wcout << L"No Type          Name\n-- -----         -----" << std::endl;
@@ -128,7 +130,6 @@ int wmain(void) {
       std::right << std::setw(2) << i + 1 << L" " <<
       std::left << std::setw(13) << buf[i].TypeName.Buffer << L" " <<
       buf[i].Name.Buffer << std::endl;
-
   std::vector<OBJECT_DIRECTORY_INFORMATION> ().swap(buf);
 
   return 0;
