@@ -9,34 +9,63 @@
 //////////////////////////////////////////////////////////////////////////////////////
 typedef LONG NTSTATUS;
 
-#define NT_SUCCESS(Status) (static_cast<NTSTATUS>(Status) >= 0L)
+#define NT_SUCCESS(Status) ((static_cast<NTSTATUS>(Status)) >= 0L)
 #define AddrToFunc(T) (reinterpret_cast<T>( \
                          GetProcAddress(GetModuleHandle(L"ntdll.dll"), (&((#T)[1])))))
 //////////////////////////////////////////////////////////////////////////////////////
+typedef struct _UNICODE_STRING {
+   USHORT Length;
+   USHORT MaximumLength;
+   PWSTR  Buffer;
+} UNICODE_STRING, *PUNICODE_STRING;
+
 typedef NTSTATUS (__stdcall *pNtQueryDefaultLocale)(
    BOOLEAN ThreadOrSystem, // TRUE - thread, FALSE - system
-   PLCID   Locale
+   PLCID Locale
+);
+
+typedef NTSTATUS (__stdcall *pRtlLcidToLocaleName)(
+   LCID Locale,
+   PUNICODE_STRING LocaleName,
+   ULONG Flags, // reserved
+   BOOLEAN AllocateDestinationString
 );
 
 typedef ULONG (__stdcall *pRtlNtStatusToDosError)(
    NTSTATUS Status
 );
 
+typedef VOID (__stdcall *pRtlFreeUnicodeString)(
+   PUNICODE_STRING UnicodeString
+);
+//////////////////////////////////////////////////////////////////////////////////////
 pNtQueryDefaultLocale NtQueryDefaultLocale;
+pRtlLcidToLocaleName RtlLcidToLocaleName;
 pRtlNtStatusToDosError RtlNtStatusToDosError;
+pRtlFreeUnicodeString RtlFreeUnicodeString;
 //////////////////////////////////////////////////////////////////////////////////////
 BOOLEAN LocateSignatures(void) {
   NtQueryDefaultLocale = AddrToFunc(pNtQueryDefaultLocale);
   if (nullptr == NtQueryDefaultLocale) return FALSE;
 
+  RtlLcidToLocaleName = AddrToFunc(pRtlLcidToLocaleName);
+  if (nullptr == RtlLcidToLocaleName) return FALSE;
+
   RtlNtStatusToDosError = AddrToFunc(pRtlNtStatusToDosError);
   if (nullptr == RtlNtStatusToDosError) return FALSE;
+
+  RtlFreeUnicodeString = AddrToFunc(pRtlFreeUnicodeString);
+  if (nullptr == RtlFreeUnicodeString) return FALSE;
 
   return TRUE;
 }
 
 int wmain(void) {
-  using namespace std;
+  using std::endl;
+  using std::hex;
+  using std::locale;
+  using std::vector;
+  using std::wcout;
 
   locale::global(locale(""));
   auto getlasterror = [](NTSTATUS nts) {
@@ -55,15 +84,21 @@ int wmain(void) {
     return 1;
   }
 
-  LCID lcid = 0;
+  LCID lcid{};
   NTSTATUS nts = NtQueryDefaultLocale(FALSE, &lcid);
   if (!NT_SUCCESS(nts)) {
     getlasterror(nts);
     return 1;
   }
 
-  wcout << L"Default system locale is "
-                                    << lcid << L" (0x" << hex << lcid << L")" << endl;
+  UNICODE_STRING name;
+  nts = RtlLcidToLocaleName(lcid, &name, 0, TRUE);
+  if (!NT_SUCCESS(nts)) {
+    getlasterror(nts);
+    return 1;
+  }
+  wcout << name.Buffer << L" : 0x" << hex << lcid << endl;
+  RtlFreeUnicodeString(&name);
 
   return 0;
 }
