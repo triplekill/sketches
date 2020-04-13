@@ -11,8 +11,9 @@
 #include <memory>
 #include <locale>
 
-typedef LONG KPRIORITY;
-typedef LONG NTSTATUS;
+typedef LONG  KPRIORITY;
+typedef LONG  NTSTATUS;
+typedef SHORT CSHORT;
 
 #define ProcessBasicInformation 0
 #define NT_SUCCESS(Status) ((static_cast<NTSTATUS>(Status)) >= 0L)
@@ -196,10 +197,23 @@ typedef struct _PROCESS_BASIC_INFORMATION {
    HANDLE InheritedFromUniqueProcessId;
 } PROCESS_BASIC_INFORMATION, *PPROCESS_BASIC_INFORMATION;
 
+typedef struct _TIME_FIELDS {
+   CSHORT Year;
+   CSHORT Month;
+   CSHORT Day;
+   CSHORT Hour;
+   CSHORT Minute;
+   CSHORT Second;
+   CSHORT Milliseconds;
+   CSHORT Weekday;
+} TIME_FIELDS, *PTIME_FIELDS;
+
 typedef NTSTATUS (__stdcall *pNtQueryInformationProcess)(HANDLE, ULONG, PVOID, ULONG, PULONG);
+typedef VOID     (__stdcall *pRtlTimeToTimeFields)(PLARGE_INTEGER, PTIME_FIELDS);
 typedef ULONG    (__stdcall *pRtlNtStatusToDosError)(NTSTATUS);
 
 pNtQueryInformationProcess NtQueryInformationProcess;
+pRtlTimeToTimeFields RtlTimeToTimeFields;
 pRtlNtStatusToDosError RtlNtStatusToDosError;
 
 #ifdef _M_X64
@@ -211,6 +225,9 @@ pRtlNtStatusToDosError RtlNtStatusToDosError;
 BOOLEAN LocateSignatures(void) {
   NtQueryInformationProcess = AddrToFunc(pNtQueryInformationProcess);
   if (nullptr == NtQueryInformationProcess) return FALSE;
+
+  RtlTimeToTimeFields = AddrToFunc(pRtlTimeToTimeFields);
+  if (nullptr == RtlTimeToTimeFields) return FALSE;
 
   RtlNtStatusToDosError = AddrToFunc(pRtlNtStatusToDosError);
   if (nullptr == RtlNtStatusToDosError) return FALSE;
@@ -321,13 +338,17 @@ int wmain(int argc, wchar_t **argv) {
       break;
     }
 
+    TIME_FIELDS tf{};
+    RtlTimeToTimeFields((PLARGE_INTEGER)&ldte.LoadTime, &tf);
     wcout << ldte.DllBase << L" "
           << (!( // check base
             reinterpret_cast<ULONG_PTR>(ldte.DllBase) - ldte.OriginalBase
           ) ? L"-*" : L"*-") << L" "
           << ldte.EntryPoint << L" "
-          // << ldte.LoadTime.QuadPart << L""
-          << right << setw(16) << ldte.SizeOfImage << L" "
+          << tf.Month << L"/" << tf.Day << L"/" << tf.Year << L" "
+          << setfill(L'0') << setw(2) << tf.Hour << L":" << setw(2)
+          << tf.Minute << L":" << setw(2) << tf.Second << L" "
+          << setfill(L' ') << right << setw(16) << ldte.SizeOfImage << L" "
           << &name[0] << endl;
 
     if (cur == end) break;
