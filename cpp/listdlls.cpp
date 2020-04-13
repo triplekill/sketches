@@ -310,10 +310,7 @@ int wmain(int argc, wchar_t **argv) {
       break;
     }
 
-    if (nullptr == ldte.DllBase) {
-      cur = ldte.InLoadOrderLinks.Flink;
-      continue;
-    }
+    if (nullptr == ldte.DllBase) break;
 
     vector<WCHAR> name(ldte.FullDllName.Length);
     if (!ReadProcessMemory(
@@ -333,7 +330,6 @@ int wmain(int argc, wchar_t **argv) {
           << right << setw(16) << ldte.SizeOfImage << L" "
           << &name[0] << endl;
 
-    cur = ldte.InLoadOrderLinks.Flink;
     if (cur == end) break;
   }
 
