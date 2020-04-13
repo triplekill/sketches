@@ -24,6 +24,18 @@ typedef SHORT CSHORT;
 )
 
 /*
+#define InitializeFileTime(p, l, h) { \
+  (p)->dwLowDateTime = l; \
+  (p)->dwHighDateTime = h; \
+}
+
+#define ResetLowAndHighParts(p, l, h) { \
+  (p)->LowPart = l; \
+  (p)->HighPart = h; \
+}
+*/
+
+/*
 typedef struct _LIST_ENTRY {
    struct _LIST_ENTRY *Flink;
    struct _LIST_ENTRY *Blink;
@@ -339,6 +351,12 @@ int wmain(int argc, wchar_t **argv) {
     }
 
     TIME_FIELDS tf{};
+    /*
+    FILETIME ft{};
+    InitializeFileTime(&ft, ldte.LoadTime.LowPart, ldte.LoadTime.HighPart);
+    FileTimeToLocalFileTime(&ft, &ft);
+    ResetLowAndHighParts(&ldte.LoadTime, ft.dwLowDateTime, ft.dwHighDateTime);
+    */
     RtlTimeToTimeFields((PLARGE_INTEGER)&ldte.LoadTime, &tf);
     wcout << ldte.DllBase << L" "
           << (!( // check base
