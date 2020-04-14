@@ -357,7 +357,7 @@ int wmain(int argc, wchar_t **argv) {
     FileTimeToLocalFileTime(&ft, &ft);
     ResetLowAndHighParts(&ldte.LoadTime, ft.dwLowDateTime, ft.dwHighDateTime);
     */
-    RtlTimeToTimeFields((PLARGE_INTEGER)&ldte.LoadTime, &tf);
+    RtlTimeToTimeFields(static_cast<PLARGE_INTEGER>(&ldte.LoadTime), &tf);
     wcout << ldte.DllBase << L" "
           << (!( // check base
             reinterpret_cast<ULONG_PTR>(ldte.DllBase) - ldte.OriginalBase
