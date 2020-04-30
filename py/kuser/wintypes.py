@@ -1,20 +1,23 @@
-from ctypes import (
+__all__ = 'KUSER_SHARED_DATA'
+#================================================================================================
+from ctypes   import (
    Structure, Union, c_byte, c_long, c_longlong, c_ubyte, c_ulong, c_ulonglong, c_ushort, c_wchar
 )
-from enum   import IntEnum
-# ====================================================================================
+from datetime import datetime, timedelta
+from enum     import IntEnum
+# ===============================================================================================
 BOOLEAN   = c_byte
 LONG      = c_long
 LONGLONG  = c_longlong
 UCHAR     = c_ubyte
 ULONG     = c_ulong
-ULONG64   = ULONGLONG = c_ulonglong
-USHORT    = WORD      = c_ushort
+ULONGLONG = c_ulonglong
+USHORT    = c_ushort
 WCHAR     = c_wchar
-# ====================================================================================
-MAX_PATH               = 260
+# ===============================================================================================
+MAX_PATH  = 260
 MAXIMUM_STATE_FEATURES = PROCESSOR_FEATURE_MAX = 64
-# ====================================================================================
+# ===============================================================================================
 class KSYSTEM_TIME(Structure):
    _fields_ = (
       ('LowPart',   ULONG),
@@ -91,10 +94,13 @@ class DUMMYSTRUCTNAME3(Structure):
 
 class DUMMYUNIONNAME3(Union):
    _fields_ = (
-      ('TickCount',     KSYSTEM_TIME),
-      ('TickCountQuad', ULONG64),
-      ('Data',          DUMMYSTRUCTNAME3),
+      ('TickCount',      KSYSTEM_TIME),
+      ('_TickCountQuad', ULONGLONG),
+      ('Data',           DUMMYSTRUCTNAME3),
    )
+   @property
+   def TickCountQuad(self):
+      return timedelta(seconds=self._TickCountQuad // 100)
 
 class DUMMYSTRUCTNAME4(Structure):
    _fields_ = (
@@ -116,8 +122,8 @@ class XSTATE_FEATURE(Structure):
 
 class XSTATE_FLAGS(Structure):
    _fields_ = (
-      ('OptimizedSave',     ULONG, 1),
-      ('CompactionEnabled', ULONG, 1),
+      ('OptimizedSave',    ULONG, 1),
+      ('CompactionEnaled', ULONG, 1), # BOOL
    )
 
 class XSTATE_FLAGS_UNION(Union):
@@ -139,16 +145,16 @@ class XSTATE_CONFIGURATION(Structure):
       ('AllFeatures',                          ULONG * MAXIMUM_STATE_FEATURES),
       ('EnabledUserVisibleSupervisorFeatures', ULONGLONG),
    )
-
+# ===============================================================================================
 class KUSER_SHARED_DATA(Structure):
-   _fields_ = ( # x86 = x64 = 0x710
+   _fields_ = (
       ('TickCountLowDeprecated',            ULONG),
       ('TickCountMultiplier',               ULONG),
       ('InterruptTime',                     KSYSTEM_TIME),
-      ('SystemTime',                        KSYSTEM_TIME),
+      ('_SystemTime',                       KSYSTEM_TIME),
       ('TimeZoneBias',                      KSYSTEM_TIME),
-      ('ImageNumberLow',                    USHORT),
-      ('ImageNumberHigh',                   USHORT),
+      ('_ImageNumberLow',                   USHORT),
+      ('_ImageNumberHigh',                  USHORT),
       ('NtSystemRoot',                      WCHAR * MAX_PATH),
       ('MaxStackTraceDepth',                ULONG),
       ('CryptoExponent',                    ULONG),
@@ -161,8 +167,8 @@ class KUSER_SHARED_DATA(Structure):
       ('TimeZoneBiasStamp',                 LONG),
       ('NtBuildNumber',                     ULONG),
       ('_NtProductType',                    ULONG), # NT_PRODUCT_TYPE
-      ('ProductTypeIsValid',                BOOLEAN),
-      ('Reserved0',                         BOOLEAN * 1),
+      ('_ProductTypeIsValid',               BOOLEAN),
+      ('Reserved0',                         UCHAR * 1),
       ('NativeProcessorArchitecture',       USHORT),
       ('NtMajorVersion',                    ULONG),
       ('NtMinorVersion',                    ULONG),
@@ -221,12 +227,36 @@ class KUSER_SHARED_DATA(Structure):
       ('XState',                            XSTATE_CONFIGURATION),
    )
    @property
+   def ImageNumberLow(self):
+      if 0x14C == self._ImageNumberLow:
+         return 'IMAGE_FILE_MACHINE_I386'
+      if 0x8664 == self._ImageNumberLow:
+         return 'IMAGE_FILE_MACHINE_AMD64'
+      return 'Unknown'
+   @property
+   def ImageNumberHigh(self):
+      if 0x14C == self._ImageNumberHigh:
+         return 'IMAGE_FILE_MACHINE_I386'
+      if 0x8664 == self._ImageNumberHigh:
+         return 'IMAGE_FILE_MACHINE_AMD64'
+      return 'Unknown'
+   @property
+   def SystemTime(self):
+      return (datetime(1970, 1, 1) + timedelta(
+         microseconds=(
+            (self._SystemTime.High1Time << 32 | self._SystemTime.LowPart) - 116444736 * 1e9
+         ) // 10
+      )).strftime('%m/%d/%Y %H:%M:%S')
+   @property
    def NtProductType(self):
       return NT_PRODUCT_TYPE(
          self._NtProductType
       ).name if self._NtProductType else None
    @property
+   def ProductTypeIsValid(self):
+      return 'valid' if self._ProductTypeIsValid else 'invalid'
+   @property
    def AlternativeArchitecture(self):
       return ALTERNATIVE_ARCHITECTURE_TYPE(
          self._AlternativeArchitecture
-      ).name if self._AlternativeArchitecture else None
+      ).name if 0 <= self._AlternativeArchitecture else None
