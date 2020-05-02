@@ -13,7 +13,7 @@ PPEB GetPEB(void) {
     mov rax, qword ptr gs:[0x60]
     mov ptr, rax
 #else
-    mov eax, fs:[0x30]
+    mov eax, dword ptr fs:[0x30]
     mov ptr, eax
 #endif
   }
