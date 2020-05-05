@@ -2,6 +2,7 @@
 
 #include <iostream>
 #include <iomanip>
+#include <cwchar>
 #include <string>
 #include <vector>
 #include <memory>
@@ -17,7 +18,7 @@ BOOLEAN LocateSignatures(void) {
   return TRUE;
 }
 
-int wmain(int argc, wchar_t *argv[]) {
+int wmain(int argc, wchar_t **argv) {
   using namespace std;
 
   locale::global(locale(""));
@@ -37,17 +38,17 @@ int wmain(int argc, wchar_t *argv[]) {
     return 1;
   }
 
-  vector<wstring> args(argv, argv + argc);
   if (2 != argc) {
-    wcout << L"Usage: " << args[0].substr(
-      args[0].find_last_of(L"\\") + 1, args[0].length()
+    wstring app(argv[0]);
+    wcout << L"Usage: " << app.substr(
+      app.find_last_of(L"\\") + 1, app.length()
     ) << L" <PID>" << endl;
     return 1;
   }
 
-  DWORD pid = wcstoul(argv[1], 0, 0);
+  ULONG pid = wcstoul(argv[1], 0, 0);
   if (0 == pid || ERANGE == errno) {
-    wcout << L"[!] Invalid PID has been specified." << endl;
+    wcout << L"[!] Invalid PID range." << endl;
     return 1;
   }
 
@@ -56,7 +57,7 @@ int wmain(int argc, wchar_t *argv[]) {
   )), [&PrintErrMessage](HANDLE *instance) {
     if (*instance) {
       if (!CloseHandle(*instance)) PrintErrMessage(0L);
-      else wcout << L"[*] the process is successfully closed" << endl;
+      else wcout << L"[*] successfully released..." << endl;
     }
   });
 
@@ -64,9 +65,9 @@ int wmain(int argc, wchar_t *argv[]) {
     PrintErrMessage(0L);
     return 1;
   }
-  wcout << L"[*] process (" << pid << L") is successfully opened" << endl;
+  wcout << L"[*] getting (" << pid << L") process..." << endl;
 
-  PROCESS_BASIC_INFORMATION pbi = {0}; // getting PEB address
+  PROCESS_BASIC_INFORMATION pbi{}; // getting PEB address
   NTSTATUS nts = NtQueryInformationProcess(
     *ps, ProcessBasicInformation, &pbi, sizeof(pbi), nullptr
   );
@@ -76,7 +77,7 @@ int wmain(int argc, wchar_t *argv[]) {
   }
   wcout << L"[*] PEB located at " << pbi.PebBaseAddress << endl;
 
-  ULONG count = 0; // getting number of heaps
+  ULONG count{}; // getting number of heaps
   if (!ReadProcessMemory(
     *ps, static_cast<PCHAR>(pbi.PebBaseAddress) + PebNumberOfHeaps,
     &count, sizeof(ULONG), nullptr
@@ -86,7 +87,7 @@ int wmain(int argc, wchar_t *argv[]) {
   }
   wcout << L"[*] the process has " << count << L" heaps" << endl;
 
-  PVOID address = nullptr; // getting address of heaps
+  PVOID address{};
   if (!ReadProcessMemory(
     *ps, static_cast<PCHAR>(pbi.PebBaseAddress) + PebProcessHeaps,
     &address, sizeof(PVOID), nullptr
@@ -96,7 +97,7 @@ int wmain(int argc, wchar_t *argv[]) {
   }
   wcout << L"[*] heaps located at " << address << endl;
 
-  vector<PVOID> heaps(sizeof(PVOID) * count);
+  vector<PHEAP> heaps(sizeof(PHEAP) * count);
   if (!ReadProcessMemory(*ps, address, &heaps[0], heaps.size(), nullptr)) {
     PrintErrMessage(0L);
     return 1;
@@ -104,22 +105,20 @@ int wmain(int argc, wchar_t *argv[]) {
   wcout << L"No  Heap             Flags    Rsrv(Kb) Commit(Kb) Segments FastHeap" << endl;
   wcout << L"--- -----            ------   -------- ---------- -------- --------" << endl;
   for (ULONG i = 0; i < count; i++) {
-    ULONG flags = 0; // getting heap flags
+    ULONG flags{}; // getting heap flags
     if (!ReadProcessMemory(
-      *ps, static_cast<PCHAR>(heaps[i]) + HeapFlags,
-      &flags, sizeof(ULONG), nullptr
+      *ps, &heaps[i]->Flags, &flags, sizeof(heaps[i]->Flags), nullptr
     )) continue;
 
-    HEAP_COUNTERS hc = {0};
+    HEAP_COUNTERS hc{};
     if (!ReadProcessMemory(
-      *ps, static_cast<PCHAR>(heaps[i]) + HeapCounters,
-      &hc, sizeof(HEAP_COUNTERS), nullptr
+      *ps, &heaps[i]->Counters, &hc, sizeof(heaps[i]->Counters), nullptr
     )) continue;
 
-    BYTE type = 0; // getting heap type
+    BYTE type{}; // getting heap type
     if (!ReadProcessMemory(
-      *ps, static_cast<PCHAR>(heaps[i]) + HeapFrontEndHeapType,
-      &type, sizeof(BYTE), nullptr
+      *ps, &heaps[i]->FrontEndHeapType, &type,
+      sizeof(heaps[i]->FrontEndHeapType), nullptr
     )) continue;
 
     wcout << setw(2) << setfill(L' ') << i + 1 << L": " // heap number
