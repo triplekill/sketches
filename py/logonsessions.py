@@ -47,13 +47,13 @@ class SID(Structure):
 
 
 """
-class LARGE_INTEGER_UNION(Union):
+class LARGE_INTEGER_UNION(Structure):
    _fields_ = [
       ('LowPart',  c_ulong),
       ('HighPart', c_long),
    ]
 
-class LARGE_INTEGER(Structure):
+class LARGE_INTEGER(Union):
    _fields_ = [
       ('u1',       LARGE_INTEGER_UNION),
       ('u2',       LARGE_INTEGER_UNION),
