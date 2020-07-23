@@ -11,6 +11,7 @@ set lst [list "Immutable$mui\\Strings" "Software\\Microsoft\\Windows\\Shell\\$mu
 
 proc err {val} {
   puts stderr [format "\[Error\]: %s" [lindex [split $val :] 0]]
+  exit 1
 }
 
 proc mui {val} {
