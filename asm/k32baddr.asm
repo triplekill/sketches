@@ -8,7 +8,7 @@ fmt: db "%p", 0xA, 0
 
 section .text
 main:
-    push r15            ; using not clobber registers seems
+    push r15            ; usage not clobber registers seems
     push r12            ; so hacky (requires releasing)
     sub  rsp, 38h       ; reserve stack
     mov  r12, [gs:60h]  ; PPEB
