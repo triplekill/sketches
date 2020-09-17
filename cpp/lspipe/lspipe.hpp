@@ -13,7 +13,6 @@
 
 #include <windows.h>
 #include <ntapi.h>
-#include <aclapi.h>
 
 #include <iostream>
 #include <iomanip>
