@@ -28,7 +28,7 @@ int wmain(void) {
   std::vector<BYTE> buf(4096);
   std::wcout << std::left << std::setw(43) << L"Pipe Name"
              << std::right << std::setw(5) << L"Cur"
-                           << std::setw(5) << L"Max" << L" Handler(s)\n"
+                           << std::setw(5) << L"Max" << L" Srv\\Client\n"
              << std::left << std::setw(43) << L"---------"
              << std::right << std::setw(5) << L"---"
                            << std::setw(5) << L"---" << L" ----------" << std::endl;
