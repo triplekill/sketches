@@ -24,48 +24,22 @@
 #pragma comment (lib, "advapi32.lib")
 #pragma comment (lib, "ntdll.lib")
 
-// INVALID_HANDLE_VALUE wrapper
-class CHandle {
-  public:
-    CHandle() = default;
-    CHandle(std::nullptr_t) {}
-    CHandle(HANDLE h) : h(h) {}
+#define LAST (0)
 
-  operator HANDLE() const { return h; }
-
-  friend bool operator ==(const CHandle &l, const CHandle &r) {
-    return l.h == r.h;
-  }
-  friend bool operator !=(const CHandle &l, const CHandle &r) {
-    return l.h != r.h;
-  }
-
-  private:
-    HANDLE h = INVALID_HANDLE_VALUE;
-};
-
-void getrawerror(void) {
-  std::wcout << L"[!] err: 0x" << std::hex
-             << ::GetLastError() << std::endl;
-}
-
-struct HandleHelper {
-  using pointer = CHandle;
-
-  void operator()(pointer p) const {
-    if (!::CloseHandle(p)) getrawerror();
-    //else std::wcout << L"[*] closed" << std::endl;
-  }
-};
-
-template<typename T>
-struct LocalHelper {
+template<typename T, bool (*Cleanup)(T)>
+struct CHelper {
   using pointer = T;
 
   void operator()(T t) const {
-    if (nullptr != ::LocalFree(t)) getrawerror();
-    //else std::wcout << L"[*] freed" << std::endl;
+    if (!Cleanup(t))
+      std::wcout << L"[!] err: 0x" << std::hex
+                 << ::GetLastError() << std::endl;
+    //else
+    //  std::wcout << L"[*] success" << std::endl;
   }
 };
+
+bool ClrHandle(const HANDLE h) { return ::CloseHandle(h); }
+bool ClrLocal(const HLOCAL h) { return nullptr == ::LocalFree(h); }
 
 #endif
