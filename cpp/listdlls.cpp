@@ -23,6 +23,10 @@ typedef SHORT CSHORT;
   ) \
 )
 
+#define S(x) L#x,
+#define Reason S(StaticDep) S(StaticFwdDep) S(DynFwdDep) S(DelayloadDep) \
+               S(DynLoad) S(AsImgLoad) S(AsDataLoad) S(EncPrime) S(EncDep)
+
 /*
 #define InitializeFileTime(p, l, h) { \
   (p)->dwLowDateTime = l; \
@@ -351,6 +355,7 @@ int wmain(int argc, wchar_t **argv) {
     }
 
     TIME_FIELDS tf{};
+    const wchar_t *reason[] = { Reason };
     /*
     FILETIME ft{};
     InitializeFileTime(&ft, ldte.LoadTime.LowPart, ldte.LoadTime.HighPart);
@@ -363,9 +368,11 @@ int wmain(int argc, wchar_t **argv) {
             reinterpret_cast<ULONG_PTR>(ldte.DllBase) - ldte.OriginalBase
           ) ? L"-*" : L"*-") << L" "
           << ldte.EntryPoint << L" "
+          << setw(13) << reason[ldte.LoadReason] << L" "
           << tf.Month << L"/" << tf.Day << L"/" << tf.Year << L" "
           << setfill(L'0') << setw(2) << tf.Hour << L":" << setw(2)
-          << tf.Minute << L":" << setw(2) << tf.Second << L" "
+          << tf.Minute << L":" << setw(2) << tf.Second << L","
+          << setw(3) << left << tf.Milliseconds <<  L" "
           << setfill(L' ') << right << setw(16) << ldte.SizeOfImage << L" "
           << &name[0] << endl;
 
