@@ -9,7 +9,7 @@
 #include <locale.h>
 
 /*
- * ntdll!RtlIsAnyDebuggetPresent
+ * ntdll!RtlIsAnyDebuggerPresent
  * __asm { // x64 and x86 only
  * #ifdef _M_X64
  *   mov  rax, qword ptr gs:[60h]             ; PEB
