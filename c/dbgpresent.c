@@ -8,6 +8,32 @@
 #include <stdio.h>
 #include <locale.h>
 
+/*
+ * ntdll!RtlIsAnyDebuggetPresent
+ * __asm { // x64 and x86 only
+ * #ifdef _M_X64
+ *   mov  rax, qword ptr gs:[60h]             ; PEB
+ *   mov  al, byte ptr [rax+2]                ; PEB->BeingDebugged
+ *   test al, al
+ *   jne  ntdll!RtlIsAnyDebuggetPresent+0x1e
+ * #else
+ *   mov  eax, dword ptr fs:[30h]
+ *   mov  al, byte ptr [eax+2]
+ *   test al, al
+ *   jne  ntdll!RtlIsAnyDebuggetPresent+0x19
+ * #endif
+ *   mov  al, byte ptr [SharedUserData+0x2d4] ; KUSER_SHARED_DATA->KeDebuggerEnabled
+ *   and  al, 3
+ *   cmp  al, 3
+ *   sete al
+ *   ret
+ * }
+ *
+ * Conclusion
+ *   The following instruction should be work in both 32 and 64-bit applications:
+ *   cmp byte ptr ds:[7ffe02d4], 3
+ */
+
 void PrintErrMessage(void) {
   HLOCAL msg = NULL;
   DWORD size = FormatMessage(
