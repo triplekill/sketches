@@ -8,6 +8,7 @@ extern printf
 ; the code below should in theory be equivalent to the following C code
 ; #include <intrin.h>
 ; #include <stdio.h>
+; #include <stdlib.h>
 ; #include <string.h>
 ;
 ; int main(void) {
