@@ -91,10 +91,10 @@ int wmain(int argc, WCHAR **argv) {
 
     MODULEENTRY32 mod = {0};
     mod.dwSize = sizeof(mod);
-    Module32First(snap, &mod);
-    CloseHandle(snap);
+    if (!Module32First(snap, &mod)) getlasterror(0L);
+    if (!CloseHandle(snap)) getlasterror(0L);
 
-    return mod.modBaseAddr;
+    return !mod.modBaseAddr ? nullptr : mod.modBaseAddr;
   };
 
   if (!LocateSignatures()) {
@@ -124,9 +124,10 @@ int wmain(int argc, WCHAR **argv) {
   }
   // image base address
   PBYTE img = getbaseaddress(wcstoul(argv[1], 0, 0));
+  if (nullptr == img) return 1;
   // locating PEB
   MEMORY_BASIC_INFORMATION mbi = {0};
-  PVOID ptr = nullptr;
+  PVOID ptr = reinterpret_cast<PVOID>(0x7FFE0000); // lower than KUSER_SHARED_DATA
   while (1) {
     NTSTATUS nts = NtQueryVirtualMemory(
       *ps, ptr, MemoryBasicInformation, &mbi, sizeof(mbi), nullptr
@@ -141,8 +142,7 @@ int wmain(int argc, WCHAR **argv) {
 
     PBYTE test{};
     nts = NtReadVirtualMemory(
-      *ps, reinterpret_cast<PVOID>(static_cast<PBYTE>(mbi.BaseAddress) + PebImgBase),
-      &test, sizeof(PBYTE), nullptr
+      *ps, static_cast<PBYTE>(mbi.BaseAddress) + PebImgBase, &test, sizeof(PBYTE), nullptr
     );
     if (!NT_SUCCESS(nts)) {
       // getlasterror(nts);
