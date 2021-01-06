@@ -102,7 +102,7 @@ function Get-TokenPrivileges {
               Privilege = [Encoding]::Unicode.GetString($name)
               Description = [Encoding]::Unicode.GetString($buf[0..($sz * 2 - 1)])
               Attributes = (
-                ('Disabled', 'Dwefault Enabled')[$Attributes -band 1], 'Enabled'
+                ('Disabled', 'Default Enabled')[$Attributes -band 1], 'Enabled'
               )[($Attributes -band 2) -eq 2]
             }
           }
