@@ -59,6 +59,7 @@ int wmain(void) {
   return 0;
 }
 */
+/*
 #ifndef UNICODE
   #define UNICODE
 #endif
@@ -91,5 +92,37 @@ int wmain(void) {
     RtlAreLongPathsEnabled() ? L"true" : L"false"
   );
 
+  return 0;
+}
+*/
+#ifdef _MSC_VER
+#include <intrin.h>
+#endif
+#include <stdio.h>
+
+int main(void) {
+  unsigned char status = 0;
+#ifdef __clang__
+  __asm {
+  #ifdef _M_X64
+    mov rax, qword ptr gs:[0x60]
+    mov al, byte ptr [rax+3]
+    shr al, 7
+  #else
+    mov eax, dword ptr fs:[0x30]
+    mov al, byte ptr [eax+3]
+    shr al, 7
+  #endif
+    mov status, al
+  }
+#elif _MSC_VER
+  #ifdef _M_X64
+    status = *(unsigned char *)(__readgsqword(0x60) + 3);
+  #else
+    status = *(unsigned char *)(__readfsdword(0x30) + 3);
+  #endif
+  status >>= 7;
+#endif
+  printf("Is long paths enabled? %s\n", 0 != status ? "true" : "false");
   return 0;
 }
