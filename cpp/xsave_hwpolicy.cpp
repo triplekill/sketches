@@ -9,17 +9,78 @@
 #include <locale>
 
 /*
- * It's possible to extract this information only with Debugging Tools.
- * >> cdb -z %__appdir__%drivers\hwpolicy.sys
- * Resource has fixed length (0x3da0):
- * >> .shell -ci "!showresources" sed "/3da0/!d"
- * The Name (.e.g. 0xa528) of the resource is the offset to the XSAVE_POLICY:
- * >> r @$t0 = hwpolicy + 0xa528
- * >> dx Debugger.Utility.Analysis.SynteticTypes.ReadHeader("E:\\sndbox\\xsave.h", "hwpolicy")
- * >> dx Debugger.Utility.Analysis.SynteticTypes.CreateInstance("XSAVE_POLICY", @$t0)
- * For showing Vendors:
- * >> dx Debugger.Utility.Analysis.SynteticTypes.CreateInstance("XSAVE_POLICY", @$t0).Features[0]
- * >> dx (char *)Debugger.Utility.Analysis.SynteticTypes.CreateInstance("XSAVE_VENDORS", (@$t0+0x410)).Vendor[0].VendorId
+ * 0:000> .shell -ci "!dh -f hwpolicy" sed "/resource/I!d"
+ *     A000 [    4470] address [size] of Resource Directory
+ * .shell: Process exited
+ *
+ * 0:000> !showresources
+ * ...
+ * .  Name: a528  Data: 3da0
+ * ...
+ * 0:000> .reload /i /f ole32.dll
+ * ...
+ * 0:000> t @$t0 = hwpolicy + a528
+ * 0:000> dx (ole32!XSAVE_POLICY *)@$t0
+ * (ole32!XSAVE_POLICY *)@$t0                 : 0x1c000a528 [Type: XSAVE_POLICY *]
+ *     [+0x000] Version          : 0x3 [Type: unsigned long]
+ *     [+0x004] Size             : 0x3da0 [Type: unsigned long]
+ *     [+0x008] Flags            : 0x9 [Type: unsigned long]
+ *     [+0x00c] MaxSaveAreaLength : 0x2000 [Type: unsigned long]
+ *     [+0x010] FeatureBitmask   : 0x7fffffffffffffff [Type: unsigned __int64]
+ *     [+0x018] NumberOfFeatures : 0x3f [Type: unsigned long]
+ *     [+0x020] Features         [Type: _XSAVE_FEATURE [1]]
+ * 0:000> dx -r1 (*((ole32!_XSAVE_FEATURE (*)[1])0x1c000a548))
+ * (*((ole32!_XSAVE_FEATURE (*)[1])0x1c000a548))                 [Type: _XSAVE_FEATURE [1]]
+ *     [0]              [Type: _XSAVE_FEATURE]
+ * 0:000> dx -r1 (*((ole32!_XSAVE_FEATURE *)0x1c000a548))
+ * (*((ole32!_XSAVE_FEATURE *)0x1c000a548))                 [Type: _XSAVE_FEATURE]
+ *     [+0x000] FeatureId        : 0x0 [Type: unsigned long]
+ *     [+0x008] Vendors          : 0x410 [Type: _XSAVE_VENDORS *]
+ *     [+0x008] Unused           : 0x410 [Type: unsigned __int64]
+ * 0:000> dx -r1 ((ole32!_XSAVE_VENDORS *)0x410)
+ * ((ole32!_XSAVE_VENDORS *)0x410)                 : 0x410 [Type: _XSAVE_VENDORS *]
+ *     [+0x000] NumberOfVendors  : Unable to read memory at Address 0x410
+ *     [+0x008] Vendor           [Type: _XSAVE_VENDOR [1]]
+ * 0:000> 0:000> dx -r3 *((ole32!XSAVE_FEATURE (*)[0x3f])(@$t0 + 0x20))
+ * *((ole32!XSAVE_FEATURE (*)[0x3f])(@$t0 + 0x20))                 [Type: XSAVE_FEATURE [63]]
+ *    [0]              [Type: XSAVE_FEATURE]
+ *        [+0x000] FeatureId        : 0x0 [Type: unsigned long]
+ *        [+0x008] Vendors          : 0x410 [Type: _XSAVE_VENDORS *]
+ *            [+0x000] NumberOfVendors  : Unable to read memory at Address 0x410
+ *            [+0x008] Vendor           [Type: _XSAVE_VENDOR [1]]
+ *        [+0x008] Unused           : 0x410 [Type: unsigned __int64]
+ *    [1]              [Type: XSAVE_FEATURE]
+ *        [+0x000] FeatureId        : 0x1 [Type: unsigned long]
+ *        [+0x008] Vendors          : 0x520 [Type: _XSAVE_VENDORS *]
+ *            [+0x000] NumberOfVendors  : Unable to read memory at Address 0x520
+ *            [+0x008] Vendor           [Type: _XSAVE_VENDOR [1]]
+ *        [+0x008] Unused           : 0x520 [Type: unsigned __int64]
+ *    [2]              [Type: XSAVE_FEATURE]
+ *        [+0x000] FeatureId        : 0x2 [Type: unsigned long]
+ *        [+0x008] Vendors          : 0x630 [Type: _XSAVE_VENDORS *]
+ *            [+0x000] NumberOfVendors  : Unable to read memory at Address 0x630
+ *            [+0x008] Vendor           [Type: _XSAVE_VENDOR [1]]
+ *        [+0x008] Unused           : 0x630 [Type: unsigned __int64]
+ * ...
+ * 0:000> dx (ole32!XSAVE_VENDORS *)(@$t0 + 0x410)
+ * (ole32!XSAVE_VENDORS *)(@$t0 + 0x410)                 : 0x1c000a938 [Type: XSAVE_VENDORS *]
+ *     [+0x000] NumberOfVendors  : 0x4 [Type: unsigned long]
+ *     [+0x008] Vendor           [Type: _XSAVE_VENDOR [1]]
+ * 0:000> dx -r1 (*((ole32!_XSAVE_VENDOR (*)[1])0x1c000a940))
+ * (*((ole32!_XSAVE_VENDOR (*)[1])0x1c000a940))                 [Type: _XSAVE_VENDOR [1]]
+ *     [0]              [Type: _XSAVE_VENDOR]
+ * 0:000> dx -r1 (*((ole32!_XSAVE_VENDOR *)0x1c000a940))
+ * (*((ole32!_XSAVE_VENDOR *)0x1c000a940))                 [Type: _XSAVE_VENDOR]
+ *     [+0x000] VendorId         [Type: unsigned long [3]]
+ *     [+0x010] SupportedCpu     [Type: _XSAVE_SUPPORTED_CPU]
+ * 0:000> dx (char *)(*((ole32!unsigned long (*)[3])0x1c000a940))
+ * (char *)(*((ole32!unsigned long (*)[3])0x1c000a940))                 : 0x1c000a940 : "GenuineIntel" [Type: char *]
+ * 0:000> dx (*((ole32!XSAVE_VENDOR (*)[4])0x1c000a940)).Select(x => (char *)x.VendorId)
+ * (*((ole32!_XSAVE_VENDOR (*)[4])0x1c000a940)).Select(x => (char *)x.VendorId)
+ *     [0]              : 0x1c000a940 : "GenuineIntel" [Type: char *]
+ *     [1]              : 0x1c000a978 : "AuthenticAMD" [Type: char *]
+ *     [2]              : 0x1c000a9b0 : "CentaurHauls" [Type: char *]
+ *     [3]              : 0x1c000a9e8 : "HygonGenuine" [Type: char *]
  * And so on.
  */
 typedef struct _XSAVE_CPU_INFO {
