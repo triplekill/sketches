@@ -60,19 +60,18 @@ int main(void) {
   printf("%wZ: ", pslsd->UserName);
   if (!FileTimeToLocalFileTime(&ft, &ft)) {
     GetLastErrorMsg(0L);
-    printf("\n");
-    return 1;
+    goto cleanup;
   }
   if (!FileTimeToSystemTime(&ft, &st)) {
     GetLastErrorMsg(0L);
-    printf("\n");
-    return 1;
+    goto cleanup;
   }
-  printf("logged at %02hu/%02hu/%02hu %02hu:%02hu:%02hu\n",
+  printf("logged at %02hu/%02hu/%02hu %02hu:%02hu:%02hu",
     st.wMonth, st.wDay, st.wYear,
     st.wHour, st.wMinute, st.wSecond
   );
-
+cleanup:
+  printf("\n");
   ntstatus = LsaFreeReturnBuffer(pslsd);
   if (!NT_SUCCESS(ntstatus)) {
     GetLastErrorMsg(ntstatus);
