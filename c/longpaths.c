@@ -107,12 +107,11 @@ int main(void) {
   #ifdef _M_X64
     mov rax, qword ptr gs:[0x60]
     mov al, byte ptr [rax+3]
-    shr al, 7
   #else
     mov eax, dword ptr fs:[0x30]
     mov al, byte ptr [eax+3]
-    shr al, 7
   #endif
+    shr al, 7
     mov status, al
   }
 #elif _MSC_VER
