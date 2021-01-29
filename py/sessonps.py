@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 from ctypes import (
    POINTER, Structure, Union, addressof, byref, cast, create_string_buffer, c_long,
    c_longlong, c_ulong, c_size_t, c_ulonglong, c_ushort, c_void_p, c_wchar_p, sizeof,
