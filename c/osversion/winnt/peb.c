@@ -1,21 +1,27 @@
 #include <intrin.h>
 #include <stdio.h>
 
-typedef unsigned char  BYTE;
-typedef unsigned long  ULONG;
-typedef unsigned short USHORT;
-
-typedef BYTE   *PBYTE;
-typedef ULONG  *PULONG;
-typedef USHORT *PUSHORT;
+typedef unsigned  char byte;
+typedef unsigned  long uint;
+typedef unsigned short ushort;
 
 int main(void) {
-  PBYTE peb = (PBYTE)__readgsqword(0x60);
-  printf("%d.%d.%d\n",
-    *(PULONG)(peb + 0x118),
-    *(PULONG)(peb + 0x11c),
-    *(PUSHORT)(peb + 0x120)
+  byte *peb;
+#ifdef _M_X64
+  peb = (byte *)__readgsqword(0x60);
+  printf("%lu.%lu.%hu\n",
+    *(uint *)(peb + 0x118),
+    *(uint *)(peb + 0x11C),
+    *(ushort *)(peb + 0x120)
   );
+#else
+  peb = (byte *)__readfsdword(0x30);
+  printf("%lu.%lu.%hu\n",
+    *(uint *)(peb + 0x0A4),
+    *(uint *)(peb + 0x0A8),
+    *(ushort *)(peb + 0x0AC)
+  );
+#endif
 
   return 0;
 }
