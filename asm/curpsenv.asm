@@ -1,23 +1,6 @@
 global main
 extern printf
 
-; the code below should in theory be equivalent to the following C code
-; #include <intrin.h>
-; #include <stdio.h>
-;
-; int main(void) {
-;   void *env = *(void **)((unsigned char *)__readgsqword(0x60) + 0x20);
-;   unsigned __int64 sz = *(unsigned __int64 *)((unsigned char *)env + 0x3f0);
-;   env = *(void **)((unsigned char *)env + 0x80);
-;   for (int i = 0; i < sz / sizeof(wchar_t); i++) {
-;     wchar_t c = *(wchar_t *)env;
-;     printf("%wc", L'\0' != c ? c : L'\n');
-;     ((wchar_t *)env)++;
-;   }
-;
-;   return 0;
-; }
-
 section .data
 fmt: db 0x25, 0x77, 0x63, 0x00     ; "%wc"
 
