@@ -2,7 +2,7 @@
 #include <locale>
 
 void GetError(DWORD ecode);
-DWORD GetPrivilege(ULONG privname, BOOLEAN enable);
+//DWORD GetPrivilege(ULONG privname, BOOLEAN enable);
 DWORD GetPipeNameHandler(ULONG pid);
 DWORD GetPipeHandler(const HANDLE& h);
 void GetPipeInfo(std::wstring name, const DWORD& cur, const LONG& max);
@@ -10,10 +10,12 @@ void GetPipeInfo(std::wstring name, const DWORD& cur, const LONG& max);
 int wmain(void) {
   std::locale::global(std::locale(""));
 
+  /*
   DWORD err = GetPrivilege(SE_DEBUG_PRIVILEGE, TRUE);
   if (ERROR_SUCCESS != err) {
     GetError(err);
   }
+  */
 
   std::unique_ptr<HANDLE, CHelper<HANDLE, ClrHandle>> pipes(::CreateFile(
     L"\\\\.\\pipe\\", GENERIC_READ, FILE_SHARE_READ, nullptr, OPEN_EXISTING, 0, nullptr
@@ -68,6 +70,7 @@ void GetError(DWORD ecode) {
   std::wcout << L"[!] " << msg.substr(0, msg.length() - sizeof(WCHAR)) << std::endl;
 }
 
+/*
 DWORD GetPrivilege(ULONG privname, BOOLEAN enable) {
   BOOLEAN enabled{};
   NTSTATUS nts = ::RtlAdjustPrivilege(privname, enable, FALSE, &enabled);
@@ -75,6 +78,7 @@ DWORD GetPrivilege(ULONG privname, BOOLEAN enable) {
 
   return ERROR_SUCCESS;
 }
+*/
 
 DWORD GetPipeHandler(const HANDLE& h) {
   ULONG sz{};

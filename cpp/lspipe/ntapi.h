@@ -7,7 +7,7 @@ extern "C" {
 
 typedef LONG NTSTATUS;
 
-#define SE_DEBUG_PRIVILEGE (20)
+//#define SE_DEBUG_PRIVILEGE (20)
 #define STATUS_INFO_LENGTH_MISMATCH (0xC0000004L)
 #define NT_SUCCESS(Status) (((NTSTATUS)(Status)) >= 0L)
 
@@ -102,6 +102,7 @@ NtQuerySystemInformation(
    _Out_opt_ PULONG ReturnLength
 );
 
+/*
 NTSYSAPI
 NTSTATUS
 NTAPI
@@ -111,6 +112,7 @@ RtlAdjustPrivilege(
    _In_ BOOLEAN Clieant,  // TRUE - calling thread otherwise process
    _Out_ PBOOLEAN Enabled // whether privilege was previously enabled
 );
+*/
 
 NTSYSAPI
 ULONG
