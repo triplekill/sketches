@@ -19,26 +19,34 @@
 #include <string>
 #include <memory>
 #include <vector>
+#include <regex>
 
-#pragma comment (lib, "advapi32.lib")
-#pragma comment (lib, "ntdll.lib")
+#pragma comment(lib, "ntdll.lib")
 
-#define LAST (0)
+#define LastWin32 (0)
+#define Winsock2 L"winsock2\\\\catalogchangelistener-(.+)-0"
+#define WmiEvent L"pipe_eventroot\\\\cimv2scm event provider"
+#define Chromium L"mojo\\.(\\d+)\\.\\d+\\.\\d+"
+#define MsysPipe L"msys-\\S+-(\\d+)-\\S+"
 
 template<typename T, bool (*Cleanup)(T)>
-struct CHelper {
+struct AutoHelper {
   using pointer = T;
 
   void operator()(T t) const {
     if (!Cleanup(t))
-      std::wcout << L"[!] err: 0x" << std::hex
-                 << ::GetLastError() << std::endl;
-    //else
-    //  std::wcout << L"[*] success" << std::endl;
+      std::wcout << L"[!] err: 0x"
+                 << std::hex
+                 << ::GetLastError()
+                 << std::endl;
+#ifdef DEBUG
+    else
+      std::wcout << L"[*] successfully released" << std::endl;
+#endif
   }
 };
 
-bool ClrHandle(const HANDLE h) { return ::CloseHandle(h); }
-bool ClrLocal(const HLOCAL h) { return nullptr == ::LocalFree(h); }
+bool AutoHandle(const HANDLE h) { return ::CloseHandle(h); }
+bool AutoLocals(const HLOCAL h) { return nullptr == ::LocalFree(h); }
 
 #endif

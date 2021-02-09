@@ -5,9 +5,9 @@
 extern "C" {
 #endif
 
+typedef LONG KPRIORITY;
 typedef LONG NTSTATUS;
 
-//#define SE_DEBUG_PRIVILEGE (20)
 #define STATUS_INFO_LENGTH_MISMATCH (0xC0000004L)
 #define NT_SUCCESS(Status) (((NTSTATUS)(Status)) >= 0L)
 
@@ -37,7 +37,8 @@ typedef enum _FILE_INFORMATION_CLASS { // reduced, key values only
 } FILE_INFORMATION_CLASS, *PFILE_INFORMATION_CLASS;
 
 typedef enum _SYSTEM_INFORMATION_CLASS {
-   SystemProcessIdInformation = 88
+   SystemProcessInformation = 5,
+   SystemProcessIdInformation = 88 // since Vista
 } SYSTEM_INFORMATION_CLASS;
 
 typedef struct _FILE_DIRECTORY_INFORMATION {
@@ -56,8 +57,45 @@ typedef struct _FILE_DIRECTORY_INFORMATION {
 
 typedef struct _FILE_PROCESS_IDS_USING_FILE_INFORMATION {
    ULONG NumberOfProcessIdsInList;
-   ULONG_PTR ProcessIdsList[1];
+   ULONG_PTR ProcessIdList[1];
 } FILE_PROCESS_IDS_USING_FILE_INFORMATION, *PFILE_PROCESS_IDS_USING_FILE_INFORMATION;
+
+typedef struct _SYSTEM_PROCESS_INFORMATION {
+   ULONG NextEntryOffset;
+   ULONG NumberOfThreads;
+   LARGE_INTEGER WorkingSetPrivateSize;
+   ULONG HardFaultCount;
+   ULONG NumBerOfThreadsHighWatermark;
+   ULONGLONG CycleTime;
+   LARGE_INTEGER CreateTime;
+   LARGE_INTEGER UserTime;
+   LARGE_INTEGER KernelTime;
+   UNICODE_STRING ImageName;
+   KPRIORITY BasePriority;
+   HANDLE UniqueProcessId;
+   HANDLE InheritedFromUniqueProcessId;
+   ULONG HandleCount;
+   ULONG SessionId;
+   ULONG_PTR UniqueProcessKey;
+   SIZE_T PeakVirtualSize;
+   SIZE_T VirtualSize;
+   ULONG PageFaultCount;
+   SIZE_T PeakWorkingSetSize;
+   SIZE_T WorkingSetSize;
+   SIZE_T QuotaPeakPagedPoolUsage;
+   SIZE_T QuotaPagedPoolUsage;
+   SIZE_T QuotaPeakNonPagedPoolUsage;
+   SIZE_T QuotaNonPagedPoolUsage;
+   SIZE_T PagefileUsage;
+   SIZE_T PeakPagefileUsage;
+   SIZE_T PrivatePageCount;
+   LARGE_INTEGER ReadOperationCount;
+   LARGE_INTEGER WriteOperationCount;
+   LARGE_INTEGER OtherOperationCount;
+   LARGE_INTEGER ReadTransferCount;
+   LARGE_INTEGER WriteTransferCount;
+   LARGE_INTEGER OtherTransferCount;
+} SYSTEM_PROCESS_INFORMATION, *PSYSTEM_PROCESS_INFORMATION;
 
 typedef struct _SYSTEM_PROCESS_ID_INFORMATION {
    HANDLE ProcessId;
@@ -101,18 +139,6 @@ NtQuerySystemInformation(
    _In_ ULONG SystemInformationLength,
    _Out_opt_ PULONG ReturnLength
 );
-
-/*
-NTSYSAPI
-NTSTATUS
-NTAPI
-RtlAdjustPrivilege(
-   _In_ ULONG Privilege,
-   _In_ BOOLEAN Enable,   // TRUE - enable otherwise disable
-   _In_ BOOLEAN Clieant,  // TRUE - calling thread otherwise process
-   _Out_ PBOOLEAN Enabled // whether privilege was previously enabled
-);
-*/
 
 NTSYSAPI
 ULONG
