@@ -1,4 +1,4 @@
-#requires -version 6
+#requires -version 7.1
 Set-Alias -Name cal -Value Get-Calendar
 function Get-Calendar {
   <#
@@ -68,7 +68,7 @@ function Get-Calendar {
   begin {
     $day = "$($d.Day)".PadLeft(2, [Char]32)
     $raw, $dfi = $host.UI.RawUI, (Get-Culture en-US).DateTimeFormat
-    $arr, $cal = $dfi.ShortestDayNames, $dfi.Calendar
+    $arr, $cal = $dfi.AbbreviatedDayNames.ForEach{$_ -replace '.$'}, $dfi.Calendar
 
     $dow = [Int32]$cal.GetDayOfWeek("$Month.1.$Year")
     if ($Invert) {
