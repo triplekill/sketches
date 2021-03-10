@@ -1,30 +1,13 @@
+#requires -version 7.1.2
 if (!($devices = Get-ItemProperty HKLM:\SYSTEM\MountedDevices -ErrorAction 0)) {
   Write-Warning 'Mounted devices has not been found.'
   return
 }
 
-$to_volume = {
-  param([Parameter(Mandatory)][Byte[]]$bytes)
-  end {
-    for ($chunks, $i = (
-      $bytes[8..11], $bytes[12..13], $bytes[14..15], # reversed
-      $bytes[16..17], $bytes[18..$bytes.Length]      # non reversed
-    ), 0; $i -lt $chunks.Length; $i++) {
-      $chunks[$i] = $chunks[$i].ForEach{$_.ToString('x2')}
-      if ($i -lt 3) {
-        $chunks[$i] = [Linq.Enumerable]::Reverse($chunks[$i])
-      }
-      $chunks[$i] = -join$chunks[$i]
-    }
-
-    "Volume{$($chunks -join '-')}"
-  }
-}
-
-$points = @{}
+$points = @{} # volume -> letter schema
 $devices.PSObject.Properties.Where{$_.Name -match 'dos'}.ForEach{
   if ([Text.Encoding]::UTF8.GetString($_.Value[0..7]) -eq 'dmio:id:') {
-    $points[(& $to_volume $_.Value)] = $_.Name[-2]
+    $points["Volume{$([Guid]::new([Byte[]]$_.Value[8..$_.Value.Length]).Guid)}"] = $_.Name[-2]
   }
 }
 
