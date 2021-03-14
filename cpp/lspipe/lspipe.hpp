@@ -26,7 +26,7 @@
 #define LastWin32 (0)
 #define Winsock2 L"winsock2\\\\catalogchangelistener-(.+)-0"
 #define WmiEvent L"pipe_eventroot\\\\cimv2scm event provider"
-#define Chromium L"mojo\\.(\\d+)\\.\\d+\\.\\d+"
+#define Chromium L".*mojo\\.(\\d+)\\.\\d+\\.\\d+"
 #define MsysPipe L"msys-\\S+-(\\d+)-\\S+"
 
 template<typename T, bool (*Cleanup)(T)>
