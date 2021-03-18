@@ -51,67 +51,60 @@ function Get-Calendar {
   #>
   [CmdletBinding()]
   param(
-    [Parameter(Position=0)]
+    [Parameter(DontShow)]
+    [ValidateNotNullOrEmpty()]
+    [DateTime]$Dummy = (Get-Date),
+
+    [Parameter()]
     [ValidateRange(1, 12)]
     [Alias('m')]
-    [Int32]$Month = ($script:d = Get-Date).Month,
+    [Int32]$Month = $Dummy.Month,
 
-    [Parameter(Position=1)]
+    [Parameter()]
     [ValidateRange(1970, 3000)]
     [Alias('y')]
-    [Int32]$Year = (.({Get-Date},{$d})[(Test-Path variable:d)]).Year,
+    [Int32]$Year = $Dummy.Year,
 
     [Parameter()][Alias('i')][Switch]$Invert,
     [Parameter()][Alias('v')][Switch]$Vertical
   )
 
   begin {
-    $day = "$($d.Day)".PadLeft(2, [Char]32)
-    $raw, $dfi = $host.UI.RawUI, (Get-Culture en-US).DateTimeFormat
-    $arr, $cal = $dfi.AbbreviatedDayNames.ForEach{$_ -replace '.$'}, $dfi.Calendar
+    $day, $dfi = "$($Dummy.Day)".PadLeft(2, [Char]32), (Get-Culture en-US).DateTimeFormat
+    $arr, $cal = ($dfi.AbbreviatedDayNames -replace '.$'), $dfi.Calendar
 
     $dow = [Int32]$cal.GetDayOfWeek("$Month.1.$Year")
     if ($Invert) {
       $arr = $arr[1..$arr.Length] + $arr[0]
       if (($dow = --$dow) -lt 0) { $dow += 7 }
     }
-  }
-  process {
-    $cap = "`e[35;1m$($dfi.MonthNames[$Month - 1]) $Year`e[32;0m"
-    $cap = "$([Char]32)" * [Math]::Round((34 - $cap.Length) / 2) + $cap
 
-    if ($dow -ne 0) { for ($i = 0; $i -lt $dow; $i++) {
-      $arr += "$([Char]32)" * 2
-    }}
-    $arr += (1..$cal.GetDaysInMonth($Year, $Month)).ForEach{
-      "$_".PadLeft(2, [Char]32)
+    $cap = "`e[35;4m$($dfi.MonthNames[$Month - 1]) $Year`e[0m"
+
+    if ($dow -ne 0) {
+      for ($i = 0; $i -lt $dow; $i++) { $arr += "$([Char]32)" * 2 }
+    }
+    $arr += (1..$cal.GetDaysInMonth($Year, $Month)).ForEach{ "$_".PadLeft(2, [Char]32) }
+
+    if ($Month -eq $Dummy.Month -and $Year -eq $Dummy.Year) {
+      $arr[$arr.IndexOf($Dummy.Day)] = "`e[39;7m$($Dummy.Day)`e[0m"
     }
   }
+  process {}
   end {
-    $cap
-    .({
+    "$([Char]32)" * [Math]::Round((34 - $cap.Length) / 2) + $cap
+    $Vertical ? $(
       $i = 0
       $seq = (,7 * 6).ForEach{$_ * (++$i)}
       for ($i = 0; $i -lt 7; $i++) {
-        if (($itm = $arr[,$i + $seq]) -contains $day) {
-          $cur, $pos = $raw.CursorPosition, $itm
-        }
-        $itm -join [Char]32
+        $arr[,$i + $seq] -join [Char]32
         $seq = $seq.ForEach{$_ + 1}
       }
-    },{
+    ) : $(
       for ($i = 0; $i -lt $arr.Length; $i += 6) {
-        if (($itm = $arr[$i..($i + 6)]) -contains $day) {
-          $cur, $pos = $raw.CursorPosition, $itm
-        }
-        $itm -join [Char]32
+        $arr[$i..($i + 6)] -join [Char]32
         $i++
       }
-    })[!$Vertical]
-    if ($Month -ne $d.Month -or $Year -ne $d.Year) { return }
-    $cur.X = ($x = $pos.IndexOf($day)) * 2 + $x
-    $raw.SetBufferContents($cur, $raw.NewBufferCellArray(
-      $day, [ConsoleColor]::Black, [ConsoleColor]::White
-    ))
+    )
   }
 }
