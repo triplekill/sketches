@@ -70,7 +70,7 @@ function Get-Calendar {
   )
 
   begin {
-    $day, $dfi = "$($Dummy.Day)".PadLeft(2, [Char]32), (Get-Culture en-US).DateTimeFormat
+    $dfi = (Get-Culture en-US).DateTimeFormat
     $arr, $cal = ($dfi.AbbreviatedDayNames -replace '.$'), $dfi.Calendar
 
     $dow = [Int32]$cal.GetDayOfWeek("$Month.1.$Year")
@@ -92,8 +92,8 @@ function Get-Calendar {
   }
   process {}
   end {
-    "$([Char]32)" * [Math]::Round((34 - $cap.Length) / 2) + $cap
     $Vertical ? $(
+      "$([Char]32)" * [Math]::Round((28 - $cap.Length) / 2) + $cap
       $i = 0
       $seq = (,7 * 6).ForEach{$_ * (++$i)}
       for ($i = 0; $i -lt 7; $i++) {
@@ -101,6 +101,7 @@ function Get-Calendar {
         $seq = $seq.ForEach{$_ + 1}
       }
     ) : $(
+      "$([Char]32)" * [Math]::Round((30 - $cap.Length) / 2) + $cap
       for ($i = 0; $i -lt $arr.Length; $i += 6) {
         $arr[$i..($i + 6)] -join [Char]32
         $i++
