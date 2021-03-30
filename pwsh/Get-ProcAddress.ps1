@@ -44,7 +44,7 @@ function Get-ProcAddress {
       if ($names[$_] -in $Function) {
         [PSCustomObject]@{
           Ordinal = $_
-          Address = $funcs[$_].ToString('X16')
+          Address = $funcs[$_]
           Name    = $names[$_]
         }
       }
