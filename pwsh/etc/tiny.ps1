@@ -1,5 +1,3 @@
-#requires -version 7.1
-# lightweight pwsh library for interacting with system API in C# style
 using namespace System.Reflection
 using namespace System.Reflection.Emit
 using namespace System.Linq.Expressions
@@ -83,13 +81,14 @@ function New-Delegate {
 function Get-DynBuilder {
   end {
     if (!($pmb = $ExecutionContext.SessionState.PSVariable.Get('PwshDynBuilder').Value)) {
-      Set-Variable -Name PwshDynBuilder -Value (
-        $pmb = ([AssemblyBuilder]::DefineDynamicAssembly(
+      Set-Variable -Name PwshDynBuilder -Value ($pmb =
+        ([AssemblyBuilder]::DefineDynamicAssembly(
           ([AssemblyName]::new('PwshDynBuilder')), 'Run'
         )).DefineDynamicModule('PwshDynBuilder', $false)
       ) -Option Constant -Scope Global -Visibility Private
+      $pmb
     }
-    else { $pmb }
+    else {$pmb}
   }
 }
 
