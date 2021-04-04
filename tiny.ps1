@@ -221,3 +221,28 @@ function New-Structure {
     }
   }
 }
+
+function ConvertTo-Structure {
+  [CmdletBinding()]
+  param(
+    [Parameter(Mandatory, Position=0)]
+    [ValidateNotNullOrEmpty()]
+    [Byte[]]$Buffer,
+
+    [Parameter(Mandatory, Position=1)]
+    [ValidateNotNull()]
+    [Type]$Type
+  )
+
+  end {
+    try {
+      $gch = [GCHandle]::Alloc($Buffer, [GCHandleType]::Pinned)
+      $ret = $gch.AddrOfPinnedObject() -as $Type
+    }
+    catch { Write-Verbose $_ }
+    finally {
+      if ($gch) { $gch.Free() }
+    }
+    $ret
+  }
+}
