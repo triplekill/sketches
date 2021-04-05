@@ -20,7 +20,7 @@ function New-Delegate {
     $ps.Dispose()
     $jmp = [Marshal]::ReadInt32($mod[0].BaseAddress, 0x3C) + [Marshal]::SizeOf([UInt32]0)
     $jmp = switch([BitConverter]::ToUInt16( # make sure the number is unsigned
-      [BitConverter]::GetBytes([Marshal]::ReadInt32($mod[0].BaseAddress, $jmp)), 0
+      [BitConverter]::GetBytes([Marshal]::ReadInt16($mod[0].BaseAddress, $jmp)), 0
     )) { 0x14C {0x20, 0x78} 0x8664 {0x40, 0x88} default { throw } }
     $to_i = "ToInt$($jmp[0])"
     if (!($ib = $mod.Where{$_.ModuleName -match "^$Module"}.BaseAddress)) {
@@ -237,12 +237,11 @@ function ConvertTo-Structure {
   end {
     try {
       $gch = [GCHandle]::Alloc($Buffer, [GCHandleType]::Pinned)
-      $ret = $gch.AddrOfPinnedObject() -as $Type
+      $gch.AddrOfPinnedObject() -as $Type
     }
     catch { Write-Verbose $_ }
     finally {
       if ($gch) { $gch.Free() }
     }
-    $ret
   }
 }
