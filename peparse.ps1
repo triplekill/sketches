@@ -19,6 +19,16 @@ function Read-PEFile {
         [void]$fs.Read($buf, 0, $buf.Length)
       }
     }
+
+    function private:Convert-RvaToOfs([UInt32]$Rva) {
+      end {
+        $sections.ForEach{
+          if (($Rva -ge $_.VirtualAddress) -and ($Rva -lt ($_.VirtualAddress + $_.Misc))) {
+            return ($Rva - ($_.VirtualAddress - $_.PointerToRawData))
+          }
+        }
+      }
+    }
   }
   process {}
   end {
@@ -60,12 +70,19 @@ function Read-PEFile {
         ConvertTo-Structure $_.Group ([IMAGE_SECTION_HEADER])
       }
 
+      if ($IMAGE_NT_HEADERS.OptionalHeader.DataDirectory[0].VirtualAddress) {
+        $fs.Position = Convert-RvaToOfs $IMAGE_NT_HEADERS.OptionalHeader.DataDirectory[0].VirtualAddress
+        Resize-Buffer ([IMAGE_EXPORT_DIRECTORY]::GetSize())
+        $IMAGE_EXPORT_DIRECTORY = ConvertTo-Structure $buf ([IMAGE_EXPORT_DIRECTORY])
+      }
+
       <#$IMAGE_DOS_HEADER
       $stub | Format-Table -AutoSize
       $IMAGE_NT_HEADERS.FileHeader
       $IMAGE_NT_HEADERS.OptionalHeader
       $IMAGE_DATA_DIRECTORY | Format-Table -AutoSize
-      $sections | Format-Table -AutoSize#>
+      $sections | Format-Table -AutoSize
+      $IMAGE_EXPORT_DIRECTORY#>
     }
     catch { Write-Verbose $_ }
     finally {
