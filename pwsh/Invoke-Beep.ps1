@@ -18,40 +18,43 @@ function New-Delegate {
     $mod = ($ps = Get-Process -Id $PID).Modules
     $ps.Dispose()
     $jmp = [Marshal]::ReadInt32($mod[0].BaseAddress, 0x3C) + [Marshal]::SizeOf([UInt32]0)
-    $jmp = switch([BitConverter]::ToUInt16( # make sure the number is unsigned
+    $jmp = switch ([BitConverter]::ToUInt16( # make sure the number is unsigned
       [BitConverter]::GetBytes([Marshal]::ReadInt16($mod[0].BaseAddress, $jmp)), 0
-    )) { 0x14C {0x20, 0x78} 0x8664 {0x40, 0x88} default { throw } }
+    )) { 0x014C {0x20, 0x78, 0x7C} 0x8664 {0x40, 0x88, 0x8C} default { throw } }
     $to_i = "ToInt$($jmp[0])"
     if (!($ib = $mod.Where{$_.ModuleName -match "^$Module"}.BaseAddress)) {
       throw [DllNotFoundException]::new("Cannot find $Module library.")
     }
     $tmp = $ib.$to_i()
-    $va = [Marshal]::ReadInt32([IntPtr]([Marshal]::ReadInt32($ib, 0x3C) + $tmp + $jmp[1]))
-    $ed = @{bs = 0x10; nf = 0x14; nn = 0x18; af = 0x1C; an = 0x20; ao = 0x24}
-    $ed.Keys.ForEach{ # key fields of IMAGE_EXPORT_DIRECTORY
+    $pe, $va, $sz = [Marshal]::ReadInt32($ib, 0x3C), ($tmp + $jmp[1]), ($tmp + $jmp[2])
+    $va, $sz = [Marshal]::ReadInt32([IntPtr]($pe + $va)), [Marshal]::ReadInt32([IntPtr]($pe + $sz))
+    ($ed = @{bs = 0x10; nf = 0x14; nn = 0x18; af = 0x1C; an = 0x20; ao = 0x24}).Keys.ForEach{
       $val = [Marshal]::ReadInt32($ib, $va + $ed.$_)
       Set-Variable -Name $_ -Value ($_.StartsWith('a') ? $tmp + $val : $val) -Scope Script
     }
-    $funcs, $names = @{}, @{}
+
+    function Assert-Forwarder([UInt32]$fa) {
+      end { ($va -le $fa) -and ($fa -lt ($va + $sz)) }
+    }
+
+    $funcs = @{}
     (0..($nf - 1)).ForEach{
-      $funcs[$bs + $_] = [IntPtr]($tmp + [Marshal]::ReadInt32([IntPtr]($af + $_ * 4)))
+      $funcs[$bs + $_] = (Assert-Forwarder ($fa = [Marshal]::ReadInt32([IntPtr]($af + $_ * 4)))) ? @{
+        Address = ''; Forward = [Marshal]::PtrToStringAnsi([IntPtr]($tmp + $fa))
+      } : @{Address = [IntPtr]($tmp + $fa); Forward = ''}
     }
-    (0..($nn - 1)).ForEach{
-      $names[($bs + [Marshal]::ReadInt16([IntPtr]($ao + $_ * 2)))] = [Marshal]::PtrToStringAnsi(
-        [IntPtr]($tmp + [Marshal]::ReadInt32([IntPtr]($an + $_ * 4)))
-      )
-    }
-    $exports = $funcs.Keys.ForEach{
+    $exports = (0..($nn - 1)).ForEach{
       [PSCustomObject]@{
-        Ordinal = $_
-        Address = $funcs[$_]
-        Name    = $names[$_]
+        Ordinal = ($ord = $bs + [Marshal]::ReadInt16([IntPtr]($ao + $_ * 2)))
+        Address = $funcs[$ord].Address
+        Name = [Marshal]::PtrToStringAnsi([IntPtr]($tmp + [Marshal]::ReadInt32([IntPtr]($an + $_ * 4))))
+        Forward = $funcs[$ord].Forward
       }
     }
   }
   process {}
   end {
-    $funcs = @{}
+    $funcs.Clear()
     for ($i, $m, $fn, $p = 0, ([Expression].Assembly.GetType(
         'System.Linq.Expressions.Compiler.DelegateHelpers'
       ).GetMethod('MakeNewCustomDelegate', [BindingFlags]'NonPublic, Static')
@@ -61,6 +64,8 @@ function New-Delegate {
     ) {
       $fnret, $fname = ($def = $p[$i].CommandElements).Value
       $fnsig, $fnarg = $exports.Where{$_.Name -ceq $fname}.Address, $def.Pipeline.Extent.Text
+
+      if (!$fnsig) { throw [InvalidOperationException]::new("Cannot find $fname signature.") }
 
       [Object[]]$fnarg = [String]::IsNullOrEmpty($fnarg) ? $fnret : (
         ($fnarg -replace '\[|\]' -split ',\s+?').ForEach{
