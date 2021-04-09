@@ -70,8 +70,8 @@ function Read-PEFile {
         ConvertTo-Structure $_.Group ([IMAGE_SECTION_HEADER])
       }
 
-      if ($IMAGE_NT_HEADERS.OptionalHeader.DataDirectory[0].VirtualAddress) {
-        $fs.Position = Convert-RvaToOfs $IMAGE_NT_HEADERS.OptionalHeader.DataDirectory[0].VirtualAddress
+      if (($export = $IMAGE_DATA_DIRECTORY.Where{$_.Directory -eq 'Export'}).VirtualAddress) {
+        $fs.Position = Convert-RvaToOfs $export.VirtualAddress
         Resize-Buffer ([IMAGE_EXPORT_DIRECTORY]::GetSize())
         $IMAGE_EXPORT_DIRECTORY = ConvertTo-Structure $buf ([IMAGE_EXPORT_DIRECTORY])
       }
