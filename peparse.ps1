@@ -77,6 +77,39 @@ function Read-PEFile {
 
         $fs.Position = Convert-RvaToOfs $IMAGE_EXPORT_DIRECTORY.Name
         while ($fs.ReadByte()) {} # moving to the list of exported functions
+        $faddr, $bs = @{}, ([Int32]$IMAGE_EXPORT_DIRECTORY.Base)
+        # getting exports, do not forget about order of functions and forwarded functions
+        $names = (0..($IMAGE_EXPORT_DIRECTORY.NumberOfNames - 1)).ForEach{
+          while (($c = $fs.ReadByte())) { $name += [Char]$c }
+          $back = $fs.Position # checking forwarding
+          while (($c = $fs.ReadByte())) { $fwrd += [Char]$c }
+          if ($fwrd -notmatch '(\.|#)') {
+            $fs.Position = $back
+            $fwrd = [String]::Empty
+          }
+          [PSCustomObject]@{
+            Name = $name; Forward = $fwrd; Type = $(
+              switch -regex -casesensitive ($name) {'^[A-Z]'{0}'^_'{1}'^[a-z]'{2}}
+            )
+          }
+          $name, $fwrd = ,[String]::Empty * 2
+        }
+        if ($names[0].Name -notmatch '^A') { $names = $names | Sort-Object Type, Name }
+        $fs.Position = Convert-RvaToOfs $IMAGE_EXPORT_DIRECTORY.AddressOfFunctions
+        $br = [BinaryReader]::new($fs) # simplifying numeric data parse
+        (0..($IMAGE_EXPORT_DIRECTORY.NumberOfFunctions - 1)).ForEach{
+          $faddr[$bs + $_] = $br.ReadUInt32().ToString('X8')
+        }
+        # time to show exports
+        $fs.Position = Convert-RvaToOfs $IMAGE_EXPORT_DIRECTORY.AddressOfNameOrdinals
+        (0..($IMAGE_EXPORT_DIRECTORY.NumberOfNames - 1)).ForEach{
+          [PSCustomObject]@{
+            Ordinal = ($ord = $bs + $br.ReadUInt16())
+            RVA = $names[$_].Forward ? '' : $faddr[$ord]
+            Name = $names[$_].Name
+            ForwardedTo = $names[$_].Forward
+          }
+        }
       }
 
       <#$IMAGE_DOS_HEADER
@@ -89,6 +122,7 @@ function Read-PEFile {
     }
     catch { Write-Verbose $_ }
     finally {
+      if ($br) { $br.Dispose() }
       if ($fs) { $fs.Dispose() }
       if ($buf) { $buf.Clear() }
     }
