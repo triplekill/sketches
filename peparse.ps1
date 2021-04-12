@@ -76,10 +76,7 @@ function Read-PEFile {
         $IMAGE_EXPORT_DIRECTORY = ConvertTo-Structure $buf ([IMAGE_EXPORT_DIRECTORY])
 
         $fs.Position = Convert-RvaToOfs $IMAGE_EXPORT_DIRECTORY.Name
-        while (($c = [Char]$fs.ReadByte())) { $name += $c }
-        "[*] Name $name"
-        $an = $fs.Position # position of names and forwards
-        $name = [String]::Empty
+        while ($fs.ReadByte()) {} # moving to the list of exported functions
       }
 
       <#$IMAGE_DOS_HEADER
