@@ -34,6 +34,7 @@ function Read-PEFile {
   end {
     try {
       $fs = [File]::OpenRead((Convert-Path $Path))
+      $br = [BinaryReader]::new($fs)
       $buf = [Byte[]]::new([IMAGE_DOS_HEADER]::GetSize())
       [void]$fs.Read($buf, 0, $buf.Length)
 
@@ -96,7 +97,6 @@ function Read-PEFile {
         }
         if ($names[0].Name -notmatch '^A') { $names = $names | Sort-Object Type, Name }
         $fs.Position = Convert-RvaToOfs $IMAGE_EXPORT_DIRECTORY.AddressOfFunctions
-        $br = [BinaryReader]::new($fs) # simplifying numeric data parse
         (0..($IMAGE_EXPORT_DIRECTORY.NumberOfFunctions - 1)).ForEach{
           $faddr[$bs + $_] = $br.ReadUInt32().ToString('X8')
         }
