@@ -309,8 +309,12 @@ New-Structure IMAGE_IMPORT_BY_NAME {
   Char   Name
 }
 
-New-Structure IMAGE_THUNK_DATA {
-  UIntPtr AddressOfData
+New-Structure IMAGE_THUNK_DATA32 {
+  UInt32 AddressOfData
+}
+
+New-Structure IMAGE_THUNK_DATA64 {
+  UInt64 AddressOfData
 }
 
 New-Structure IMAGE_IMPORT_DESCRIPTOR {
