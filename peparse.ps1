@@ -1,4 +1,5 @@
 using namespace System.IO
+using namespace System.Runtime.InteropServices
 
 #. .\pelib.ps1
 #. .\tiny.ps1
@@ -29,6 +30,36 @@ function Read-PEFile {
         }
       }
     }
+
+    <#function private:Get-ApiSet {
+      end {
+        $apiset = @{}
+        New-Delegate ntdll { IntPtr RtlGetCurrentPeb }
+        $to_i = "ToInt$(($sz = [IntPtr]::Size) * 8)"
+
+        $ptr = [Marshal]::ReadIntPtr([IntPtr](
+          $ntdll.RtlGetCurrentPeb.Invoke().$to_i() + ($sz -eq 8 ? 0x68 : 0x38)
+        ))
+        $asn, $mov = ($ptr -as [API_SET_NAMESPACE]), $ptr.$to_i()
+
+        $pasne = [IntPtr]($asn.EntryOffset + $mov)
+        for ($i = 0; $i -lt $asn.Count; $i++) {
+          $asne = $pasne -as [API_SET_NAMESPACE_SET]
+          $dll = [Marshal]::PtrToStringUni([IntPtr]($asne.NameOffset + $mov), $asne.NameLength / 2)
+
+          $pasve = [IntPtr]($asne.ValueOffset + $mov)
+          $mod = for ($j = 0; $j -lt $asne.ValueCount; $j++) {
+            $asve = $pasve -as [API_SET_VALUE_ENTRY]
+            [Marshal]::PtrToStringUni([IntPtr]($asve.ValueOffset + $mov), $asve.ValueLength / 2)
+            $pasve = [IntPtr]($pasve.$to_i() + $asve::GetSize())
+          }
+          $apiset["$($dll).dll"] = $mod
+
+          $pasne = [IntPtr]($pasne.$to_i() + $asne::GetSize())
+        }
+        $apiset
+      }
+    }#>
   }
   process {}
   end {
@@ -102,7 +133,7 @@ function Read-PEFile {
         }
         # time to show exports
         $fs.Position = Convert-RvaToOfs $IMAGE_EXPORT_DIRECTORY.AddressOfNameOrdinals
-        (0..($IMAGE_EXPORT_DIRECTORY.NumberOfNames - 1)).ForEach{
+        $export = (0..($IMAGE_EXPORT_DIRECTORY.NumberOfNames - 1)).ForEach{
           [PSCustomObject]@{
             Ordinal = ($ord = $bs + $br.ReadUInt16())
             RVA = $names[$_].Forward ? '' : $faddr[$ord]
@@ -112,13 +143,31 @@ function Read-PEFile {
         }
       }
 
+      if (($import = $IMAGE_DATA_DIRECTORY.Where{$_.Directory -eq 'Import'}).VirtualAddress) {
+        $fs.Position = Convert-RvaToOfs $import.VirtualAddress
+        $apiset = Get-ApiSet
+        (0..($import.Size / [IMAGE_IMPORT_DESCRIPTOR]::GetSize() - 2)).ForEach{
+          $name = [String]::Empty
+          Resize-Buffer ([IMAGE_IMPORT_DESCRIPTOR]::GetSize())
+          $IMAGE_IMPORT_DESCRIPTOR = ConvertTo-Structure $buf ([IMAGE_IMPORT_DESCRIPTOR])
+          $cur = $fs.Position
+
+          $fs.Position = Convert-RvaToOfs $IMAGE_IMPORT_DESCRIPTOR.Name
+          while (($c = $fs.ReadByte())) { $name += [Char]$c }
+          #($dll = $apiset[$name]) ? "$name (points to $dll)" : $name
+          $name
+          $fs.Position = $cur
+        }
+      }
+
       <#$IMAGE_DOS_HEADER
       $stub | Format-Table -AutoSize
       $IMAGE_NT_HEADERS.FileHeader
       $IMAGE_NT_HEADERS.OptionalHeader
       $IMAGE_DATA_DIRECTORY | Format-Table -AutoSize
       $sections | Format-Table -AutoSize
-      $IMAGE_EXPORT_DIRECTORY#>
+      $IMAGE_EXPORT_DIRECTORY
+      $export#>
     }
     catch { Write-Verbose $_ }
     finally {

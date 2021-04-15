@@ -333,3 +333,31 @@ New-Structure IMAGE_RESOURCE_DIRECTORY {
   UInt16 NumberOfNamedEntries
   UInt16 NumberOfIdEntries
 } # IMAGE_RESOURCE_DIRECTORY_ENTRY[]
+
+<# decoding some imports names (ApiSet v6)
+New-Structure API_SET_NAMESPACE {
+  UInt32 Version
+  UInt32 Size
+  UInt32 Flags
+  UInt32 Count
+  UInt32 EntryOffset
+  UInt32 HashOffset
+  UInt32 HashFactor
+}
+
+New-Structure API_SET_NAMESPACE_SET {
+  UInt32 Flags
+  UInt32 NameOffset
+  UInt32 NameLength
+  UInt32 HashedLength
+  UInt32 ValueOffset
+  UInt32 ValueCount
+}
+
+New-Structure API_SET_VALUE_ENTRY {
+  UInt32 Flags
+  UInt32 NameOffset
+  UInt32 NameLength
+  UInt32 ValueOffset
+  UInt32 ValueLength
+}#>
