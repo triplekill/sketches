@@ -332,7 +332,8 @@ New-Structure IMAGE_RESOURCE_DIRECTORY {
   UInt16 MinorVersion
   UInt16 NumberOfNamedEntries
   UInt16 NumberOfIdEntries
-} # IMAGE_RESOURCE_DIRECTORY_ENTRY[]
+  # IMAGE_RESOURCE_DIRECTORY_ENTRY[]
+}
 
 <# decoding some imports names (ApiSet v6)
 New-Structure API_SET_NAMESPACE {
