@@ -325,6 +325,30 @@ New-Structure IMAGE_IMPORT_DESCRIPTOR {
   UInt32 FirstThunk
 }
 
+New-Structure IMAGE_BOUND_IMPORT_DESCRIPTOR {
+  UInt32 TimeDateStamp
+  UInt16 OffsetModuleName
+  UInt16 NumberOfModuleForwarderRefs
+  # IMAGE_BOUND_FORWARDER_REF[]
+}
+
+New-Structure IMAGE_BOUND_FORWARDER_REF {
+  UInt32 TimeDateStamp
+  UInt16 OffsetModuleName
+  UInt16 Reserved
+}
+
+New-Structure IMAGE_DELAYLOAD_DESCRIPTOR {
+  UInt32 Attributes
+  UInt32 DllNameRVA
+  UInt32 ModuleHandleRVA
+  UInt32 ImportAddressTableRVA
+  UInt32 ImportNameTableRVA
+  UInt32 BoundImportAddressTableRVA
+  UInt32 UnloadInformationTableRVA
+  UInt32 TimeDateStamp
+}
+
 New-Structure IMAGE_RESOURCE_DIRECTORY {
   UInt32 Characteristics
   UInt32 TimeDateStamp
