@@ -57,7 +57,7 @@ function Read-PEFile {
         UInt16 SizeOfOptionalHeader
         UInt16 Characteristics
       }
-      $Machine = switch ($block.Machine) {0x014C{32}0x8664{64}default{throe}}
+      $Machine = switch ($block.Machine) {0x014C{32}0x8664{64}default{throw}}
       $section = $block.NumberOfSections
 
       Get-Block {
