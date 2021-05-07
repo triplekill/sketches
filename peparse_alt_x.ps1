@@ -68,7 +68,7 @@ function Get-PeInfo {
         UInt16 Characteristics
       }
       $IMAGE_FILE_HEADER.Machine = $IMAGE_FILE_HEADER.Machine -eq 0x014C ? 32 : 64
-      $StartOfOptionalHeader = $fs.Position
+      $AfterOptionalHeader = $fs.Position + $IMAGE_FILE_HEADER.SizeOfOptionalHeader
       Get-Block IMAGE_OPTIONAL_HEADER {
         UInt16 Magic
         Byte   Linker 2
@@ -88,12 +88,12 @@ function Get-PeInfo {
         UInt32  Skipped 4
         UInt16  Subsystem
       }
-      $fs.Position = $StartOfOptionalHeader + $IMAGE_FILE_HEADER.SizeOfOptionalHeader - 0x0F * 8
+      $fs.Position = $AfterOptionalHeader - 0x0F * 8
       Get-Block ImportDirectory {
         UInt32 Rva
         UInt32 Size
       }
-      $fs.Position = $StartOfOptionalHeader + $IMAGE_FILE_HEADER.SizeOfOptionalHeader
+      $fs.Position = $AfterOptionalHeader
       $sections = (0..($IMAGE_FILE_HEADER.NumberOfSections - 1)).ForEach{
         [PSCustomObject]@{
           Name = [String]::new($br.ReadBytes(0x08)).Trim("`0")
@@ -104,17 +104,19 @@ function Get-PeInfo {
         }
         $fs.Position += 0x10
       }
-      $fs.Position = Convert-RvaToRaw $ImportDirectory.Rva
-      $dlls = (0..($ImportDirectory.Size / 0x14 - 2)).ForEach{
-        $name = [String]::Empty
-        $gch = [GCHandle]::Alloc($br.ReadBytes(0x14), [GCHandleType]::Pinned)
-        $cur = $fs.Position
-        $fs.Position = Convert-RvaToRaw ([Marshal]::ReadInt32($gch.AddrOfPinnedObject(), 0x0C))
-        $gch.Free()
+      if ($ImportDirectory.Rva) {
+        $fs.Position = Convert-RvaToRaw $ImportDirectory.Rva
+        $dlls = (0..($ImportDirectory.Size / 0x14 - 2)).ForEach{
+          $name = [String]::Empty
+          $gch = [GCHandle]::Alloc($br.ReadBytes(0x14), [GCHandleType]::Pinned)
+          $cur = $fs.Position
+          $fs.Position = Convert-RvaToRaw ([Marshal]::ReadInt32($gch.AddrOfPinnedObject(), 0x0C))
+          $gch.Free()
 
-        while (($c = $fs.ReadByte())) { $name += [Char]$c }
-        $name
-        $fs.Position = $cur
+          while (($c = $fs.ReadByte())) { $name += [Char]$c }
+          $name
+          $fs.Position = $cur
+        }
       }
 
       [PSCustomObject]@{
