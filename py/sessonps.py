@@ -7,10 +7,12 @@ from ctypes import (
 
 FORMAT_MESSAGE_ALLOCATE_BUFFER = 0x00000100
 FORMAT_MESSAGE_FROM_SYSTEM     = 0x00001000
+LANG_NEUTRAL                   = 0x00000000
+SUBLANG_DEFAULT                = 0x00000001
+PROCESS_QUERY_INFORMATION      = 0x00000400
+TOKEN_QUERY                    = 0x00000008
 
-LANG_NEUTRAL    = 0x00000000
-SUBLANG_DEFAULT = 0x00000001
-
+BOOL = c_long
 BYTE = c_byte
 DWORD = ULONG = c_ulong
 HANDLE = HLOCAL = LPCVOID = PSID = PVOID = va_list = c_void_p
@@ -23,9 +25,14 @@ ULONGLONG = c_ulonglong
 USHORT = c_ushort
 
 SystemSessionProcessInformation = ULONG(53) # SYSTEM_INFORMATION_CLASS
+TokenUser = ULONG(1) # TOKEN_INFORMATION_CLASS
 TokenStatistics = ULONG(10) # TOKEN_INFORMATION_CLASS
 STATUS_SUCCESS = NTSTATUS(0x00000000).value
 STATUS_INFO_LENGTH_MISMATCH = NTSTATUS(0xC0000004).value
+
+CloseHandle = windll.kernelbase.CloseHandle
+CloseHandle.restype = BOOL
+CloseHandle.argtype = HANDLE
 
 FormatMessage = windll.kernelbase.FormatMessageW
 FormatMessage.restype = DWORD
@@ -56,6 +63,14 @@ NtQuerySystemInformation = windll.ntdll.NtQuerySystemInformation
 NtQuerySystemInformation.restype = NTSTATUS
 NtQuerySystemInformation.argtypes = (ULONG, PVOID, ULONG, POINTER(ULONG))
 
+OpenProcess = windll.kernelbase.OpenProcess
+OpenProcess.restype = HANDLE
+OpenProcess.argtypes = (DWORD, BOOL, DWORD)
+
+OpenProcessToken = windll.kernelbase.OpenProcessToken
+OpenProcessToken.restype = BOOL
+OpenProcessToken.argtypes = (HANDLE, DWORD, POINTER(HANDLE))
+
 RtlNtStatusToDosError = windll.ntdll.RtlNtStatusToDosError
 RtlNtStatusToDosError.restype = ULONG
 RtlNtStatusToDosError.argtype = NTSTATUS
@@ -67,7 +82,7 @@ def getlasterror(nts : NTSTATUS) -> None:
    msg = LPWSTR()
    if 0 != FormatMessage(
       FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM, None,
-      RtlNtStatusToDosError(ntstatus) if 0 != nts else GetLastError(),
+      RtlNtStatusToDosError(nts) if 0 != nts else GetLastError(),
       MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), byref(msg), 0, None
    ):
       print(msg.value.strip())
@@ -150,6 +165,17 @@ class SECURITY_LOGON_SESSION_DATA(Structure):
    @property
    def UserName(self):
       return '{0}\\{1}'.format(self.LogonDomain.Buffer, self._UserName.Buffer)
+
+class SID_AND_ATTRIBUTES(Structure):
+   _fields_ = (
+      ('Sid', POINTER(SID)),
+      ('Attributes', DWORD),
+   )
+
+class TOKEN_USER(CStruct):
+   _fields_ = (
+      ('User', SID_AND_ATTRIBUTES),
+   )
 
 class SYSTEM_SESSION_PROCESS_INFORMATION(CStruct):
    _fields_ = (
