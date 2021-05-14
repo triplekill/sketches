@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 from ctypes import (
-   POINTER, Structure, Union, addressof, byref, cast, create_string_buffer,
-   c_byte, c_long, c_longlong, c_ulong, c_ulonglong, c_ushort, c_size_t,
-   c_void_p, c_wchar_p, pointer, sizeof, windll
+   POINTER, Structure, Union, addressof, byref, cast, create_string_buffer, create_unicode_buffer,
+   c_byte, c_long, c_longlong, c_ulong, c_ulonglong, c_ushort, c_size_t, c_void_p, c_wchar_p,
+   pointer, sizeof, windll
 )
 
 FORMAT_MESSAGE_ALLOCATE_BUFFER = 0x00000100
@@ -18,7 +18,7 @@ DWORD = ULONG = c_ulong
 HANDLE = HLOCAL = LPCVOID = PSID = PVOID = va_list = c_void_p
 KPRIORITY = LONG = NTSTATUS = c_long
 LONGLONG = c_longlong
-LPWSTR = PWSTR = c_wchar_p
+LPCWSTR = LPWSTR = PWSTR = c_wchar_p
 SIZE_T = c_size_t
 UINT_PTR = c_ulonglong if 8 == sizeof(c_void_p) else c_ulong
 ULONGLONG = c_ulonglong
@@ -27,8 +27,10 @@ USHORT = c_ushort
 SystemSessionProcessInformation = ULONG(53) # SYSTEM_INFORMATION_CLASS
 TokenUser = ULONG(1) # TOKEN_INFORMATION_CLASS
 TokenStatistics = ULONG(10) # TOKEN_INFORMATION_CLASS
+ERROR_INSUFFICIENT_BUFFER = ULONG(0x7A).value
 STATUS_SUCCESS = NTSTATUS(0x00000000).value
 STATUS_INFO_LENGTH_MISMATCH = NTSTATUS(0xC0000004).value
+STATUS_BUFFER_TOO_SMALL = NTSTATUS(0xC0000023).value
 
 CloseHandle = windll.kernelbase.CloseHandle
 CloseHandle.restype = BOOL
@@ -45,6 +47,10 @@ GetLastError.argtype = None
 LocalFree = windll.kernelbase.LocalFree
 LocalFree.restype = HLOCAL
 LocalFree.argtype = HLOCAL
+
+LookupAccountSid = windll.advapi32.LookupAccountSidW
+LookupAccountSid.restype = BOOL
+LookupAccountSid.argtypes = (LPCWSTR, PVOID, LPWSTR, POINTER(DWORD), LPWSTR, POINTER(DWORD), PVOID)
 
 LsaFreeReturnBuffer = windll.secur32.LsaFreeReturnBuffer
 LsaFreeReturnBuffer.restype = NTSTATUS
@@ -240,7 +246,42 @@ def getcurusrsession() -> tuple:
       getlasterror(nts)
    return res
 
-def psessieve(num : ULONG) -> None:
+def getpsowner(pid : ULONG) -> str:
+   if not (hndl := OpenProcess(PROCESS_QUERY_INFORMATION, False, pid)):
+      #getlasterror(0)
+      return ''
+   ptkn = HANDLE()
+   if not OpenProcessToken(hndl, TOKEN_QUERY, byref(ptkn)):
+      getlasterror(0)
+      if not CloseHandle(hndl):
+         getlasterror(0)
+      return ''
+   sz = ULONG()
+   if STATUS_BUFFER_TOO_SMALL == (nts := NtQueryInformationToken(ptkn, TokenUser, None, 0, byref(sz))):
+      buf = create_string_buffer(sz.value)
+      if STATUS_SUCCESS != (nts := NtQueryInformationToken(ptkn, TokenUser, buf, len(buf), byref(sz))):
+         getlasterror(nts)
+         buf = None
+   else:
+      getlasterror(nts)
+   if not CloseHandle(ptkn):
+      getlasterror(0)
+   if not CloseHandle(hndl):
+      getlasterror(0)
+   if not buf:
+      return ''
+   sid = cast(buf, POINTER(TOKEN_USER)).contents.User.Sid
+   nsz, dsz = ULONG(), ULONG()
+   if not LookupAccountSid(None, sid, None, byref(nsz), None, byref(dsz), None) and GetLastError() != ERROR_INSUFFICIENT_BUFFER:
+      getlasterror(0)
+      return ''
+   name, domain, out = create_unicode_buffer(nsz.value), create_unicode_buffer(dsz.value), PVOID()
+   if not LookupAccountSid(None, sid, name, byref(nsz), domain, byref(dsz), byref(out)):
+      getlasterror(0)
+      return ''
+   return domain.value + '\\' + name.value
+
+def psessieve(num : ULONG, usr : str) -> None:
    sspi, buf = SYSTEM_SESSION_PROCESS_INFORMATION(), create_string_buffer(0x1000)
    sspi.SessionId = num
    sspi.SizeOfBuf = len(buf)
@@ -263,10 +304,11 @@ def psessieve(num : ULONG) -> None:
    adr = addressof(buf)
    spi = cast(adr, POINTER(SYSTEM_PROCESS_INFORMATION))
    while (spi[0].NextEntryOffset):
-      print('{0:4}: {1}'.format(spi[0].UniqueProcessId, spi[0].ImageName.Buffer))
+      if usr == getpsowner(ULONG(spi[0].UniqueProcessId)):
+         print('{0:4}: {1}'.format(spi[0].UniqueProcessId, spi[0].ImageName.Buffer))
       adr += spi[0].NextEntryOffset
       spi = cast(adr, POINTER(SYSTEM_PROCESS_INFORMATION))
 
 if __name__ == '__main__':
-   if -1 != (usr:= getcurusrsession())[-1]:
-      psessieve(usr[-1])
+   if -1 != (usr := getcurusrsession())[-1]:
+      psessieve(usr[-1], usr[0])
