@@ -1,15 +1,17 @@
 using namespace System.IO
 using namespace System.Runtime.InteropServices
 
-function Get-PeInfo {
+function Get-PeDepends {
   [CmdletBinding()]
   param(
     [Parameter(Mandatory)]
+    [ValidateScript({!!($script:file = Convert-Path $_ -ErrorAction 0)})]
     [ValidateNotNullOrEmpty()]
-    [String]$Path
+    [String]$Path = $file
   )
 
   begin {
+    $VerbosePreference = 'Continue'
     function private:Get-Block([String]$Name, [ScriptBlock]$Fields) {
       end {
         if (!($var = $ExecutionContext.SessionState.PSVariable.Get($Name)).Value) {
@@ -18,7 +20,7 @@ function Get-PeInfo {
 
         $Fields.Ast.FindAll({$args[0].CommandElements}, $true).ToArray().ForEach{
           $type, $desc, $pack = $_.CommandElements.Value
-          $type = $type -creplace 'Ptr', $IMAGE_FILE_HEADER.Machine
+          #$type = $type -creplace 'Ptr', $IMAGE_FILE_HEADER.Machine
           $var.Value[$desc] = $pack ? $(
             (0..($pack - 1)).ForEach{$br."Read$($type)"()}
           ) : $($br."Read$($type)"())
@@ -30,9 +32,9 @@ function Get-PeInfo {
       end {
         $AlignSection = {
           param([UInt32]$Size)
-          ($Size -band (
-            ($align = $IMAGE_OPTIONAL_HEADER.SectionAlignment) - 1)
-          ) ? (($Size -band ($align * -1)) + $align) : $Size
+          ($Size -band ($SectionAlignment - 1)) ? (
+            ($Size -band ($SectionAlignment * -1)) + $SectionAlignment
+          ) : $Size
         }
 
         $sections.ForEach{
@@ -43,10 +45,10 @@ function Get-PeInfo {
       }
     }
   }
-  process {}
+  #process {}
   end {
     try {
-      $br = [BinaryReader]::new(($fs = [File]::OpenRead((Convert-Path $Path))))
+      $br = [BinaryReader]::new(($fs = [File]::OpenRead($Path)))
       Get-Block IMAGE_DOS_HEADER {
         UInt16 e_magic
         UInt16 e_skipped 29
@@ -67,32 +69,26 @@ function Get-PeInfo {
         UInt16 SizeOfOptionalHeader
         UInt16 Characteristics
       }
-      $IMAGE_FILE_HEADER.Machine = $IMAGE_FILE_HEADER.Machine -eq 0x014C ? 32 : 64
+      $IMAGE_FILE_HEADER.Machine = switch ($IMAGE_FILE_HEADER.Machine) {
+        0x014C {0x20} 0x8664 { 0x40 } default {throw}
+      }
+      if (($IMAGE_FILE_HEADER.Characteristics -band 0x2000) -eq 0x2000) {
+        Write-Verbose 'Seems that file you are trying to parse is a DLL.'
+      }
       $AfterOptionalHeader = $fs.Position + $IMAGE_FILE_HEADER.SizeOfOptionalHeader
-      Get-Block IMAGE_OPTIONAL_HEADER {
-        UInt16 Magic
-        Byte   Linker 2
-        UInt32 SizeOfCode
-        UInt32 SizeOfData 2
-        UInt32 AddressOfEntryPoint
-        UInt32 BaseOfCode
-      }
-      if ($IMAGE_OPTIONAL_HEADER.Magic -eq 0x10B) {
-        $IMAGE_OPTIONAL_HEADER.BaseOfData = $br.ReadUInt32()
-      }
-      Get-Block IMAGE_OPTIONAL_HEADER {
-        UIntPtr ImageBase
-        UInt32  SectionAlignment
-        UInt32  FileAlignment
-        UInt16  Versions 6
-        UInt32  Skipped 4
-        UInt16  Subsystem
-      }
+
+      $fs.Position += 0x20
+      $SectionAlignment = $br.ReadUInt32()
+
       $fs.Position = $AfterOptionalHeader - 0x0F * 8
       Get-Block ImportDirectory {
         UInt32 Rva
         UInt32 Size
       }
+      if (!$ImportDirectory.Rva) {
+        throw [InvalidOperationException]::new('There are no imports.')
+      }
+
       $fs.Position = $AfterOptionalHeader
       $sections = (0..($IMAGE_FILE_HEADER.NumberOfSections - 1)).ForEach{
         [PSCustomObject]@{
@@ -104,33 +100,23 @@ function Get-PeInfo {
         }
         $fs.Position += 0x10
       }
-      if ($ImportDirectory.Rva) {
-        $fs.Position = Convert-RvaToRaw $ImportDirectory.Rva
-        $dlls = (0..($ImportDirectory.Size / 0x14 - 2)).ForEach{
-          $name = [String]::Empty
-          $gch = [GCHandle]::Alloc($br.ReadBytes(0x14), [GCHandleType]::Pinned)
-          $cur = $fs.Position
-          $fs.Position = Convert-RvaToRaw ([Marshal]::ReadInt32($gch.AddrOfPinnedObject(), 0x0C))
-          $gch.Free()
 
-          while (($c = $fs.ReadByte())) { $name += [Char]$c }
-          $name
-          $fs.Position = $cur
-        }
-      }
+      $fs.Position = Convert-RvaToRaw $ImportDirectory.Rva
+      (0..($ImportDirectory.Size / 0x14 - 2)).ForEach{
+        $name = [String]::Empty
+        $gch = [GCHandle]::Alloc($br.ReadBytes(0x14), [GCHandleType]::Pinned)
+        $cur = $fs.Position
+        $fs.Position = Convert-RvaToRaw ([Marshal]::ReadInt32($gch.AddrOfPinnedObject(), 0x0C))
+        $gch.Free()
 
-      [PSCustomObject]@{
-        Type = $IMAGE_OPTIONAL_HEADER.Magic -eq 0x20B ? 'PE+' : 'PE'
-        Linker = $IMAGE_OPTIONAL_HEADER.Linker -join '.'
-        EP = '0x{0:X}' -f $IMAGE_OPTIONAL_HEADER.AddressOfEntryPoint
-        Sections = Format-Table -InputObject $sections -AutoSize
-        Imports = $dlls
-      }
+        while (($c = $fs.ReadByte())) { $name += [Char]$c }
+        $name.ToLower()
+        $fs.Position = $cur
+      } | Sort-Object
     }
     catch { Write-Verbose $_ }
     finally {
-      if ($br) { $br.Dispose() }
-      if ($fs) { $fs.Dispose() }
+      ($br, $fs).ForEach{ if ($_) { $_.Dispose() } }
     }
   }
 }
