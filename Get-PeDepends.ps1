@@ -69,9 +69,9 @@ function Get-PeDepends {
         UInt16 SizeOfOptionalHeader
         UInt16 Characteristics
       }
-      $IMAGE_FILE_HEADER.Machine = switch ($IMAGE_FILE_HEADER.Machine) {
+      <#$IMAGE_FILE_HEADER.Machine = switch ($IMAGE_FILE_HEADER.Machine) {
         0x014C {0x20} 0x8664 { 0x40 } default {throw}
-      }
+      }#>
       if (($IMAGE_FILE_HEADER.Characteristics -band 0x2000) -eq 0x2000) {
         Write-Verbose 'Seems that file you are trying to parse is a DLL.'
       }
