@@ -7,11 +7,11 @@ function Get-PeDepends {
     [Parameter(Mandatory)]
     [ValidateScript({!!($script:file = Convert-Path $_ -ErrorAction 0)})]
     [ValidateNotNullOrEmpty()]
-    [String]$Path = $file
+    [String]$Path
   )
 
   begin {
-    $VerbosePreference = 'Continue'
+    $VerbosePreference, $Path = 'Continue', $file
     function private:Get-Block([String]$Name, [ScriptBlock]$Fields) {
       end {
         if (!($var = $ExecutionContext.SessionState.PSVariable.Get($Name)).Value) {
