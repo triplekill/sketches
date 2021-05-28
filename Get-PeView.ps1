@@ -31,12 +31,10 @@ function Get-PeView {
       }
     }
 
-    function private:Convert-RvaToRaw([UInt32]$Rva, [UInt32]$Align) {
+    function private:Convert-RvaToRaw([UInt32]$Rva, [UInt32]$Align=$IMAGE_OPTIONAL_HEADER.FileAlignment) {
       end {
         [ScriptBlock]$Aligner = {
-          param([UInt32]$Size)
-
-          ($Size -band ($Align - 1)) ? (($Size -band ($Align * -1)) + $Align) : $Size
+          param([UInt32]$Size) ($Size -band ($Align - 1)) ? (($Size -band ($Align * -1)) + $Align) : $Size
         }
 
         $sections.ForEach{
@@ -61,6 +59,7 @@ function Get-PeView {
   end {
     try {
       $br = [BinaryReader]::new(($fs = [File]::OpenRead($Path)))
+      Write-Verbose "Image total length 0x$($fs.Length.ToString('X'))"
       Get-Block IMAGE_DOS_HEADER {
         UInt16 e_magic
         UInt16 e_cblp
@@ -85,11 +84,15 @@ function Get-PeView {
       if ($IMAGE_DOS_HEADER.e_magic -ne 0x5A4D) {
         throw [InvalidOperationException]::new('DOS signature has not been found.')
       }
+      Write-Verbose 'Found the DOS signature'
 
       $fs.Position = $IMAGE_DOS_HEADER.e_lfanew
+      Write-Verbose "Image NT headers offset 0x$($fs.Position.ToString('X'))"
       if ($br.ReadUInt32() -ne 0x4550) {
         throw [InvalidOperationException]::new('PE signature has not been found.')
       }
+      Write-Verbose 'Found the PE signature'
+      Write-Verbose "Image file header offset 0x$($fs.Position.ToString('X'))"
       Get-Block IMAGE_FILE_HEADER {
         UInt16 Machine
         UInt16 NumberOfSections
@@ -103,6 +106,7 @@ function Get-PeView {
         0x014C {0x20} 0x8664 {0x40}
         default{throw [InvalidOperationException]::new('Unknown machine type.')}
       }
+      Write-Verbose "Image optional header offset 0x$($fs.Position.ToString('X'))"
       Get-Block IMAGE_OPTIONAL_HEADER {
         UInt16 Magic
         Byte   MajorLinkerVersion
@@ -143,6 +147,7 @@ function Get-PeView {
         UInt32  LoaderFlags
         UInt32  NumberOfRvaAndSizes
       }
+      Write-Verbose "Image data directories offset 0x$($fs.Position.ToString('X'))"
       $DataDirectories = (0..($IMAGE_OPTIONAL_HEADER.NumberOfRvaAndSizes - 1)).ForEach{
         [PSCustomObject]@{
           Name = $RvaAndSizes[$_]
@@ -150,9 +155,10 @@ function Get-PeView {
           Size = $br.ReadUInt32()
         }
       }
+      Write-Verbose "Image sections offset 0x$($fs.Position.ToString('X'))"
       $sections = (0..($IMAGE_FILE_HEADER.NumberOfSections - 1)).ForEach{
         [PSCustomObject]@{
-          Name = [String]::new($br.ReadBytes(0x08)).Trim("`0")
+          Name = ($$ = [String]::new($br.ReadBytes(0x08)).Trim("`0"))
           VirtualSize = $br.ReadUInt32()
           VirtualAddress = $br.ReadUInt32()
           SizeOfRawData = $br.ReadUInt32()
@@ -163,6 +169,7 @@ function Get-PeView {
           NumberOfLinenumbers = $br.ReadUInt16()
           Characteristics = $br.ReadUInt32()
         }
+        Write-Verbose "Section $$"
       }
 
       if (!($Export = $DataDirectories.Where{$_.Name -ceq 'Export'}).RVA) {
@@ -184,31 +191,90 @@ function Get-PeView {
           UInt32 AddressOfNames
           UInt32 AddressOfNameOrdinals
         }
-        $fs.Position = Convert-RvaToRaw $IMAGE_EXPORT_DIRECTORY.AddressOfFunctions $IMAGE_OPTIONAL_HEADER.FileAlignment
+        $fs.Position = Convert-RvaToRaw $IMAGE_EXPORT_DIRECTORY.AddressOfFunctions
         $funcs = @{}
         (0..($IMAGE_EXPORT_DIRECTORY.NumberOfFunctions - 1)).ForEach{
           $adr = $br.ReadUInt32()
           $fwd = Convert-RvaToRaw $adr $IMAGE_OPTIONAL_HEADER.FileAlignment
           $funcs[$IMAGE_EXPORT_DIRECTORY.Base + $_] = (
             ($Export.RVA -le $adr) -and ($adr -lt ($Export.RVA + $Export.Size))
-          ) ? @{ Address = ''; Forward = Get-RawString $fwd -NoMove } : @{ Address = $adr.ToString('X8'); Forward = '' }
+          ) ? @{ Address = ''; Forward = Get-RawString $fwd -NoMove } : @{
+            Address = $adr.ToString('X8'); Forward = ''
+          }
         }
-        $ords = Convert-RvaToRaw $IMAGE_EXPORT_DIRECTORY.AddressOfNameOrdinals $IMAGE_OPTIONAL_HEADER.FileAlignment
-        $fs.Position = Convert-RvaToRaw $IMAGE_EXPORT_DIRECTORY.AddressOfNames $IMAGE_OPTIONAL_HEADER.FileAlignment
-        (0..($IMAGE_EXPORT_DIRECTORY.NumberOfNames - 1)).ForEach{
+        $ords = Convert-RvaToRaw $IMAGE_EXPORT_DIRECTORY.AddressOfNameOrdinals
+        $fs.Position = Convert-RvaToRaw $IMAGE_EXPORT_DIRECTORY.AddressOfNames
+        $Export = (0..($IMAGE_EXPORT_DIRECTORY.NumberOfNames - 1)).ForEach{
           $cursor = $fs.Position
           $fs.Position = $ords
           $ord = $br.ReadUInt16() + $IMAGE_EXPORT_DIRECTORY.Base
           $ords = $fs.Position
           $fs.Position = $cursor
 
-          $itm = Get-RawString (Convert-RvaToRaw ($br.ReadUInt32()) $IMAGE_OPTIONAL_HEADER.FileAlignment) -NoMove
           [PSCustomObject]@{
             Ordinal = $ord
             Address = $funcs.$ord.Address
-            Name = $itm
+            Name = Get-RawString (Convert-RvaToRaw ($br.ReadUInt32())) -NoMove
             ForwardedTo = $funcs.$ord.Forward
           }
+        }
+      }
+
+      if (!($Import = $DataDirectories.Where{$_.Name -ceq 'Import'}).RVA) {
+        Write-Verbose 'No imports'
+      }
+      else {
+        $fs.Position = Convert-RvaToRaw $Import.RVA $IMAGE_OPTIONAL_HEADER.SectionAlignment
+        Write-Verbose "Image import descriptor offset 0x$($fs.Position.ToString('X'))"
+        $Import = (0..($Import.Size / 0x14 - 2)).ForEach{
+          Get-Block IMAGE_IMPORT_DESCRIPTOR {
+            UInt32 Characteristics
+            UInt32 TimeDateStamp
+            UInt32 ForwarderChain
+            UInt32 Name
+            UInt32 FirstThunk
+          }
+          $dll = Get-RawString (Convert-RvaToRaw $IMAGE_IMPORT_DESCRIPTOR.Name) -NoMove
+
+          $cursor = $fs.Position
+          $thunk = Convert-RvaToRaw $IMAGE_IMPORT_DESCRIPTOR.FirstThunk
+
+          while (1) {
+            $fs.Position = $thunk
+            Get-Block IMAGE_THUNK_DATA {
+              UIntPtr AddressOfData
+            }
+
+            if (!$IMAGE_THUNK_DATA.AddressOfData) { break }
+            $thunk = $fs.Position
+            $fs.Position = Convert-RvaToRaw $IMAGE_THUNK_DATA.AddressOfData
+            [PSCustomObject]@{
+              Module = $dll
+              Ordinal = $br.ReadUInt16().ToString('X')
+              Name = Get-RawString $fs.Position
+            }
+            $IMAGE_THUNK_DATA = @{}
+          }
+
+          $fs.Position = $cursor
+          $IMAGE_IMPORT_DESCRIPTOR = @{}
+        }
+      }
+
+      if (!($Resource = $DataDirectories.Where{$_.Name -ceq 'Resource'}).RVA) {
+        Write-Verbose 'No resources'
+      }
+      else {
+        $fs.Position = Convert-RvaToRaw $Resource.RVA $IMAGE_OPTIONAL_HEADER.SectionAlignment
+        Write-Verbose "Image resource directory offset 0x$($fs.Position.ToString('X'))"
+        Get-Block IMAGE_RESOURCE_DIRECTORY {
+          UInt32 Characteristics
+          UInt32 TimeDateStamp
+          UInt16 MajorVersion
+          UInt16 MinorVersion
+          UInt16 NumberOfNamedEntries
+          UInt16 NumberOfIdEntries
+          # IMAGE_RESOURCE_DIRECTORY_ENTRY[]
         }
       }
     }
