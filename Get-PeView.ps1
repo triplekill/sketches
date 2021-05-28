@@ -245,7 +245,7 @@ function Get-PeView {
               UIntPtr AddressOfData
             }
 
-            if (!$IMAGE_THUNK_DATA.AddressOfData) { break }
+            if (!$IMAGE_THUNK_DATA.AddressOfData -or $IMAGE_THUNK_DATA.AddressOfData -gt [UInt32]::MaxValue) { break }
             $thunk = $fs.Position
             $fs.Position = Convert-RvaToRaw $IMAGE_THUNK_DATA.AddressOfData
             [PSCustomObject]@{
