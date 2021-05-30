@@ -11,7 +11,8 @@ function Get-PeView {
     [Parameter()][Alias('d')][Switch]$DataDir,
     [Parameter()][Alias('s')][Switch]$Section,
     [Parameter()][Alias('e')][Switch]$Exports,
-    [Parameter()][Alias('i')][Switch]$Imports
+    [Parameter()][Alias('i')][Switch]$Imports,
+    [Parameter()][Alias('b')][Switch]$DbgDirs
   )
 
   begin {
@@ -267,6 +268,68 @@ function Get-PeView {
 
             $fs.Position = $cursor
             $IMAGE_IMPORT_DESCRIPTOR = @{}
+          }
+        }
+      }
+
+      if ($DbgDirs) {
+        if (!($Debug = $DataDirectories.Where{$_.Name -eq 'Debug'}).RVA) {
+          Write-Verbose 'No debugging data'
+        }
+        else {
+          $fs.Position = Convert-RvaToRaw $Debug.RVA $IMAGE_OPTIONAL_HEADER.SectionAlignment
+          (0..($Debug.Size / 0x1C - 1)).ForEach{
+            Get-Block IMAGE_DEBUG_DIRECTORY {
+              UInt32 Characteristics
+              UInt32 TimeDateStamp
+              UInt16 MajorVersion
+              UInt16 MinorVersion
+              UInt32 Type
+              UInt32 SizeOfData
+              UInt32 AddressOfRawData
+              UInt32 PointerToRawData
+            }
+            $cursor = $fs.Position
+            $fs.Position = $IMAGE_DEBUG_DIRECTORY.PointerToRawData
+            switch ($IMAGE_DEBUG_DIRECTORY.Type) {
+              2 { # IMAGE_DEBUG_TYPE_CODEVIEW
+                ($sig = [String]::new($br.ReadBytes(4))) -eq 'RSDS' ? (
+                  [PSCustomObject]@{
+                    Type = 'CodeView'
+                    Signature = $sig
+                    GUID = [Guid]::new($br.ReadBytes(16))
+                    Age  = $br.ReadUInt32()
+                    Path = [String]::new($br.ReadBytes($IMAGE_DEBUG_DIRECTORY.SizeOfData - 0x18))
+                  }
+                ) : (
+                  [PSCustomObject]@{
+                    Type = 'CodeView'
+                    Signature = $sig
+                    Offset = $bs.ReadUInt32()
+                  }
+                )
+              } # IMAGE_DEBUG_TYPE_CODEVIEW
+              12 { # IMAGE_DEBUG_TYPE_VC_FEATURE
+                [PSCustomObject]@{
+                  Type = 'VCFeature'
+                  PreVC11 = $br.ReadUInt32()
+                  CCpp = $br.ReadUInt32()
+                  Gs = $br.ReadUInt32()
+                  Sdl = $br.ReadUInt32()
+                  GuardN = $br.ReadUInt32()
+                }
+              } # IMAGE_DEBUG_TYPE_VC_FEATURE
+              13 { # IMAGE_DEBUG_TYPE_POGO
+                [PSCustomObject]@{
+                  Type = 'CoffGrp'
+                  Value = [String]::new([Linq.Enumerable]::Reverse($br.ReadBytes(4)))
+                  # Entries[] { UInt32 Rva; UInt32 Size; String Name }
+                }
+              } # IMAGE_DEBUG_TYPE_POGO
+              default {}
+            }
+            $fs.Position = $cursor
+            $IMAGE_DEBUG_DIRECTORY = @{}
           }
         }
       }
