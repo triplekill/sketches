@@ -10,7 +10,8 @@ function Get-PeView {
 
     [Parameter()][Alias('h')][Switch]$Headers,
     [Parameter()][Alias('e')][Switch]$Exports,
-    [Parameter()][Alias('i')][Switch]$Imports
+    [Parameter()][Alias('i')][Switch]$Imports,
+    [Parameter()][Alias('d')][Switch]$DbgInfo
   )
 
   begin {
@@ -228,15 +229,15 @@ function Get-PeView {
         }
       }
       if ($Headers) {
-        $Sections | Select-Object Name, @{N='VirtualSize';E={$_.VirtualSize.ToString('X')}}, @{
-          N='VirtualAddress';E={$_.VirtualAddress.ToString('X')}
-        }, @{N='SizeOfRawData';E={$_.SizeOfRawData.ToString('X')}}, @{
+        $Sections | Format-Table Name, @{N='VirtualSize';E={$_.VirtualSize.ToString('X')};A='Right'}, @{
+          N='VirtualAddress';E={$_.VirtualAddress.ToString('X')};A='Right'
+        }, @{N='SizeOfRawData';E={$_.SizeOfRawData.ToString('X')};A='Right'}, @{
           N='PointerToRawData';E={$_.PointerToRawData.ToString('X')}
         }, @{N='Characteristics';E={
           foreach ($key in $SecChar.Keys) {
             if (($_.Characteristics -band $SecChar.$key) -eq $SecChar.$key) {$key}
           }
-        }} | Format-Table -AutoSize
+        }} -AutoSize
       } # Headers
 
       if ($Exports) {
@@ -269,21 +270,26 @@ function Get-PeView {
               Address = $adr.ToString('X8'); Forward = ''
             }
           }
-          $ords = Convert-RvaToRaw $IMAGE_EXPORT_DIRECTORY.AddressOfNameOrdinals
-          $fs.Position = Convert-RvaToRaw $IMAGE_EXPORT_DIRECTORY.AddressOfNames
-          (0..($IMAGE_EXPORT_DIRECTORY.NumberOfNames - 1)).ForEach{
-            $cursor = $fs.Position
-            $fs.Position = $ords
-            $ord = $br.ReadUInt16() + $IMAGE_EXPORT_DIRECTORY.Base
-            $ords = $fs.Position
-            $fs.Position = $cursor
+          if ($IMAGE_EXPORT_DIRECTORY.AddressOfNameOrdinals) {
+            $ords = Convert-RvaToRaw $IMAGE_EXPORT_DIRECTORY.AddressOfNameOrdinals
+            $fs.Position = Convert-RvaToRaw $IMAGE_EXPORT_DIRECTORY.AddressOfNames
+            (0..($IMAGE_EXPORT_DIRECTORY.NumberOfNames - 1)).ForEach{
+              $cursor = $fs.Position
+              $fs.Position = $ords
+              $ord = $br.ReadUInt16() + $IMAGE_EXPORT_DIRECTORY.Base
+              $ords = $fs.Position
+              $fs.Position = $cursor
 
-            [PSCustomObject]@{
-              Ordinal = $ord
-              Address = $funcs.$ord.Address
-              Name = Get-RawString (Convert-RvaToRaw ($br.ReadUInt32())) -NoMove
-              ForwardedTo = $funcs.$ord.Forward
+              [PSCustomObject]@{
+                Ordinal = $ord
+                Address = $funcs.$ord.Address
+                Name = Get-RawString (Convert-RvaToRaw ($br.ReadUInt32())) -NoMove
+                ForwardedTo = $funcs.$ord.Forward
+              }
             }
+          }
+          else {
+            # is it really necessary for printing?
           }
         }
       } # Exports
@@ -329,6 +335,58 @@ function Get-PeView {
           }
         }
       } # Imports
+
+      if ($DbgInfo) {
+        if (!($Debug = $DataDirectories.Where{$_.Name -ceq 'Debug'}).RVA) {
+          throw 'No debugging notes'
+        }
+        else {
+          $fs.Position = Convert-RvaToRaw $Debug.RVA $IMAGE_OPTIONAL_HEADER.SectionAlignment
+          (0..($Debug.Size / 0x1C - 1)).ForEach{
+            Get-Block IMAGE_DEBUG_DIRECTORY {
+              UInt32 Characteristics
+              UInt32 TimeDateStamp
+              UInt16 MajorVersion
+              UInt16 MinorVersion
+              UInt32 Type
+              UInt32 SizeOfData
+              UInt32 AddressOfRawData
+              UInt32 PointerToRawData
+            }
+            $cursor = $fs.Position
+            $fs.Position = $IMAGE_DEBUG_DIRECTORY.PointerToRawData
+            [PSCustomObject]@{
+              Time = $IMAGE_DEBUG_DIRECTORY.TimeDateStamp.ToString('X')
+              Type = $IMAGE_DEBUG_DIRECTORY.Type
+              Size = $IMAGE_DEBUG_DIRECTORY.SizeOfData.ToString('X')
+              RVA  = $IMAGE_DEBUG_DIRECTORY.AddressOfRawData.ToString('X8')
+              Pointer = $IMAGE_DEBUG_DIRECTORY.PointerToRawData.ToString('X')
+              Brief = switch ($IMAGE_DEBUG_DIRECTORY.Type) {
+                 2 { # IMAGE_DEBUG_TYPE_CODEVIEW
+                   ($sig = [String]::new($br.ReadChars(4))) -eq 'RSDS' ? (
+                     "Format: $sig, {$([Guid]::new($br.ReadBytes(16)))}, $($br.ReadUInt32()), $(
+                       [String]::new($br.ReadBytes($IMAGE_DEBUG_DIRECTORY.SizeOfData - 0x18))
+                      )"
+                   ) : "Format: $sig, Offset: $($br.ReadUInt32())"
+                 }
+                12 { # IMAGE_DEBUG_TYPE_VC_FEATURE
+                  "Counts: Pre-VC++ 11.00=$($br.ReadUInt32()), C\C++=$($br.ReadUInt32()), /GS=$(
+                  $br.ReadUInt32()), /sdl=$($br.ReadUInt32()), guardN=$($br.ReadUInt32())"
+                }
+                13 { # IMAGE_DEBUG_TYPE_POGO
+                  [String]::new([Linq.Enumerable]::Reverse($br.ReadChars(4)))
+                }
+                16 { # IMAGE_DEBUG_TYPE_REPRO
+                  $fs.Position += 0x04
+                  $br.ReadBytes($IMAGE_DEBUG_DIRECTORY.SizeOfData - 0x04).ForEach{$_.ToString('X2')} -join ' '
+                }
+              } # debug directory description
+            }
+            $fs.Position = $cursor
+            $IMAGE_DEBUG_DIRECTORY = @{}
+          } | Format-Table -AutoSize
+        }
+      } # DbgInfo
     }
     catch { Write-Verbose $_ }
     finally {
