@@ -1,4 +1,5 @@
 using namespace System.IO
+using namespace System.Security.Cryptography.X509Certificates
 
 function Get-PeView {
   [CmdletBinding()]
@@ -11,7 +12,9 @@ function Get-PeView {
     [Parameter()][Alias('h')][Switch]$Headers,
     [Parameter()][Alias('e')][Switch]$Exports,
     [Parameter()][Alias('i')][Switch]$Imports,
-    [Parameter()][Alias('d')][Switch]$DbgInfo
+    [Parameter()][Alias('c')][Switch]$CertInf,
+    [Parameter()][Alias('d')][Switch]$DbgInfo,
+    [Parameter()][Alias('l')][Switch]$LoadCfg
   )
 
   begin {
@@ -89,7 +92,7 @@ function Get-PeView {
                 'major'   { $ver = $$ }
                 'minor'   { & $printf ($ver, $$, ($remark -replace 'minor ')) '{0,13}.{1:D2} {2}' }
                 '^subsys' { & $printf ($$, $remark, (& $value $Subsystem $$)) '{0,16:X} {1} ({2})' }
-                'time'    { & $printf ($$, $remark, ([DateTime]'1.1.1970').AddSeconds($$)) '{0,16:X} {1} ({2})'}
+                '^time'   { & $printf ($$, $remark, ([DateTime]'1.1.1970').AddSeconds($$)) '{0,16:X} {1} ({2})'}
                 default   { & $printf ($$, $remark) }
               }
             } # Print
@@ -289,7 +292,13 @@ function Get-PeView {
             }
           }
           else {
-            # is it really necessary for printing?
+            ($zip = [Linq.Enumerable]::Zip(
+              [UInt16[]]$funcs.Keys, [String[]]$funcs.Values.Address,
+              [Func[UInt16, String, PSCustomObject]]{
+                [PSCustomObject]@{Ordinal=$args[0];Address=$args[1];Name='[NONAME]'}
+              }
+            )) | Sort-Object Ordinal
+            $zip.Dispose()
           }
         }
       } # Exports
@@ -336,9 +345,30 @@ function Get-PeView {
         }
       } # Imports
 
+      if ($CertInf) {
+        if (!($Signed = $DataDirectories.Where{$_.Name -ceq 'Certificates'}).RVA) {
+          Write-Verbose 'Unsigned'
+        }
+        else {
+          $fs.Position = $Signed.RVA
+          [PSCustomObject]@{
+            Size = $br.ReadUInt32()
+            Revision = '0x{0:X4}' -f $br.ReadUInt16()
+            Type = $br.ReadUInt16()
+            Valid = ($script:crt = [X509Certificate2]::new($br.ReadBytes($Signed.Size - 0x08))).Verify()
+            NotBefore = $crt.NotBefore
+            NotAfter = $crt.NotAfter
+            Issuer = $crt.Issuer
+            Subject = $crt.Subject
+            Thumbprint = $crt.Thumbprint
+          }
+          $crt.Dispose()
+        }
+      } # CertInf
+
       if ($DbgInfo) {
         if (!($Debug = $DataDirectories.Where{$_.Name -ceq 'Debug'}).RVA) {
-          throw 'No debugging notes'
+          Write-Verbose 'No debugging notes'
         }
         else {
           $fs.Position = Convert-RvaToRaw $Debug.RVA $IMAGE_OPTIONAL_HEADER.SectionAlignment
@@ -387,6 +417,45 @@ function Get-PeView {
           } | Format-Table -AutoSize
         }
       } # DbgInfo
+
+      if ($LoadCfg) {
+        if (!($Load = $DataDirectories.Where{$_.Name -ceq 'LoadConfiguration'}).RVA) {
+          Write-Verbose 'No load configuration'
+        }
+        else {
+          $fs.Position = Convert-RvaToRaw $Load.RVA $IMAGE_OPTIONAL_HEADER.SectionAlignment
+          Write-Host "LOAD CONFIGURATION VALUES"
+          Get-Block IMAGE_LOAD_CONFIG_DIRECTORY {
+            UInt32  Size
+            UInt32  TimeDateStamp
+            UInt16  MajorVersion
+            UInt16  MinorVersion
+            UInt32  GlobalFlagsClear
+            UInt32  GlobalFlagsSet
+            UInt32  CriticalSectionDefaultTimeout
+            UIntPtr DecommitFreeBlockThreshold
+            UIntPtr DecommitTotalFreeThreshold
+            UIntPtr LockPrefixTable
+            UIntPtr MaximumAllocationSize
+            UIntPtr VirtualMemoryThreshold
+          } -Print:$LoadCfg
+          if ($Bitness -eq 0x20) {
+            Get-Block IMAGE_LOAD_CONFIG_DIRECTORY {
+              UInt32 ProcessHeapFlags
+              UInt32 ProcessAffinityMask
+            } -Print:$LoadCfg
+          }
+          else {
+            Get-Block IMAGE_LOAD_CONFIG_DIRECTORY {
+              UIntPtr ProcessAffinityMask
+              UInt32  ProcessHeapFlags
+            } -Print:$LoadCfg
+          }
+          Get-Block IMAGE_LOAD_CONFIG_DIRECTORY {
+            UInt16  CsdVersion
+          } -Print:$LoadCfg
+        }
+      } # LoadCfg
     }
     catch { Write-Verbose $_ }
     finally {
