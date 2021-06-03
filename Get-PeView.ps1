@@ -1,4 +1,5 @@
 using namespace System.IO
+using namespace System.Linq
 using namespace System.Security.Cryptography.X509Certificates
 
 function Get-PeView {
@@ -13,6 +14,7 @@ function Get-PeView {
     [Parameter()][Alias('e')][Switch]$Exports,
     [Parameter()][Alias('i')][Switch]$Imports,
     [Parameter()][Alias('c')][Switch]$CertInf,
+    [Parameter()][Alias('b')][Switch]$BaseRel,
     [Parameter()][Alias('d')][Switch]$DbgInfo,
     [Parameter()][Alias('l')][Switch]$LoadCfg
   )
@@ -219,7 +221,7 @@ function Get-PeView {
       }
       $Sections = (0..($IMAGE_FILE_HEADER.NumberOfSections - 1)).ForEach{
         [PSCustomObject]@{
-          Name = ($$ = [String]::new($br.ReadBytes(0x08)).Trim("`0"))
+          Name = [String]::new($br.ReadBytes(0x08)).Trim("`0")
           VirtualSize = $br.ReadUInt32()
           VirtualAddress = $br.ReadUInt32()
           SizeOfRawData = $br.ReadUInt32()
@@ -292,7 +294,7 @@ function Get-PeView {
             }
           }
           else {
-            ($zip = [Linq.Enumerable]::Zip(
+            ($zip = [Enumerable]::Zip(
               [UInt16[]]$funcs.Keys, [String[]]$funcs.Values.Address,
               [Func[UInt16, String, PSCustomObject]]{
                 [PSCustomObject]@{Ordinal=$args[0];Address=$args[1];Name='[NONAME]'}
@@ -366,6 +368,24 @@ function Get-PeView {
         }
       } # CertInf
 
+      if ($BaseRel) {
+        if (!($Reloc = $DataDirectories.Where{$_.Name -ceq 'BaseRelocation'}).RVA) {
+          Write-Verbose 'No relocation data'
+        }
+        else {
+          $fs.Position = Convert-RvaToRaw $Reloc.RVA $IMAGE_OPTIONAL_HEADER.SectionAlignment
+          while (1) {
+            if (!($va = $br.ReadUInt32())) { break }
+            [PSCustomObject]@{
+              VirtualAddress = '0x{0:X8}' -f $va
+              SizeOfBlock = '0x{0:X8}' -f ($sz = $br.ReadUInt32())
+              Entries = ($on = $sz / 0x02 - 0x04)
+            }
+            $fs.Position += $on * 2
+          }
+        }
+      } # BaseRel
+
       if ($DbgInfo) {
         if (!($Debug = $DataDirectories.Where{$_.Name -ceq 'Debug'}).RVA) {
           Write-Verbose 'No debugging notes'
@@ -404,7 +424,7 @@ function Get-PeView {
                   $br.ReadUInt32()), /sdl=$($br.ReadUInt32()), guardN=$($br.ReadUInt32())"
                 }
                 13 { # IMAGE_DEBUG_TYPE_POGO
-                  [String]::new([Linq.Enumerable]::Reverse($br.ReadChars(4)))
+                  [String]::new([Enumerable]::Reverse($br.ReadChars(4)))
                 }
                 16 { # IMAGE_DEBUG_TYPE_REPRO
                   $fs.Position += 0x04
