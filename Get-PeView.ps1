@@ -13,6 +13,8 @@ function Get-PeView {
     [Parameter()][Alias('h')][Switch]$Headers,
     [Parameter()][Alias('e')][Switch]$Exports,
     [Parameter()][Alias('i')][Switch]$Imports,
+    [Parameter()][Alias('r')][Switch]$ResInfo,
+    [Parameter()][Alias('x')][Switch]$Exceptn,
     [Parameter()][Alias('c')][Switch]$CertInf,
     [Parameter()][Alias('b')][Switch]$BaseRel,
     [Parameter()][Alias('d')][Switch]$DbgInfo,
@@ -346,6 +348,41 @@ function Get-PeView {
           }
         }
       } # Imports
+
+      if ($ResInfo) {
+        if (!($Resources = $DataDirectories.Where{$_.Name -ceq 'Resource'}).RVA) {
+          Write-Verbose 'No resources'
+        }
+        else { # should be same .rsrc -> PointerToRawData
+          $fs.Position = Convert-RvaToRaw $Resources.RVA $IMAGE_OPTIONAL_HEADER.SectionAlignment
+          $rsrc = $fs.Position
+          Get-Block IMAGE_RESOURCE_DIRECTORY {
+            UInt32 Characteristics
+            UInt32 TimeDateStamp
+            UInt16 MajorVersion
+            UInt16 MinorVersion
+            UInt16 NumberOfNamedEntries
+            UInt16 NumberOfIdEntries
+          }
+        }
+      } # ResInfo
+
+      if ($Exceptn) {
+        if (!($Exception = $DataDirectories.Where{$_.Name -ceq 'Exception'}).RVA) {
+          Write-Verbose 'No functions data'
+        }
+        else {
+          $fs.Position = Convert-RvaToRaw $Exception.RVA $IMAGE_OPTIONAL_HEADER.SectionAlignment
+          while (1) {
+            if (!($va = $br.ReadUInt32())) { break }
+            [PSCustomObject]@{
+              Begin = $va.ToString('X8')
+              End = $br.ReadUInt32().ToString('X8')
+              Unwind = $br.ReadUInt32().ToString('X8')
+            }
+          }
+        }
+      } # Exceptn
 
       if ($CertInf) {
         if (!($Signed = $DataDirectories.Where{$_.Name -ceq 'Certificates'}).RVA) {
