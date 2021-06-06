@@ -22,7 +22,7 @@ function Get-PeView {
   )
 
   begin {
-    $Path, $Machine, $FileChar, $Subsystem, $DllChar, $RvaAndSizes, $SecChar = $file, @{
+    $Path, $Machine, $FileChar, $Subsystem, $DllChar, $RvaAndSizes, $SecChar, $ResIds = $file, @{
       UNKNOWN = 0x000; TARGET_HOST = 0x0001; I386 = 0x014C; R3000 = 0x0162; R4000 = 0x0166; R10000 = 0x0168;
       WCEMIPSV2 = 0x0169; ALPHA = 0x0184; SH3 = 0x01A2; SH3DSP = 0x01A3; SH3E = 0x01A4; SH4 = 0x01A6;
       SH5 = 0x01A8; ARM = 0x01C0; THUMB = 0x01C2; ARMNT = 0x01C4; AM33 = 0x01D3; POWERPC = 0x01F0;
@@ -62,6 +62,10 @@ function Get-PeView {
       MEM_EXECUTE = 0x20000000; MEM_READ = 0x40000000; MEM_WRITE = [BitConverter]::ToUInt32(
         [BitConverter]::GetBytes(0x80000000), 0
       )
+    }, @{
+      CURSOR = 1; BITMAP = 2; ICON = 3; MENU = 4; DIALOG = 5; STRING = 6; FONTDIR = 7; FONT = 8; ACCELERATORS = 9;
+      RCDATA = 10; MESSAGETABLE = 11; GROUP_ICON = 14; VERSION = 16; DLGINCLUDE = 17; PLUGPLAY = 19; VXD = 20;
+      ANICURSOR = 21; ANICON = 22; HTML = 23;MANIFEST = 24
     }
 
     function private:Get-Block([String]$Name, [ScriptBlock]$Fields, [Boolean]$Print) {
@@ -90,7 +94,7 @@ function Get-PeView {
             if ($Print) {
               switch -regex (($remark = ($desc -creplace '(\B[A-Z])', ' $1').ToLower())) {
                 '^charac' { if ($$) { & $printf ($$, $remark, (& $bitmask $FileChar $$)) "{0,16:X} {1}`n`t`t   {2}" } }
-                '^dll'    { & $printf ($$, $remark, (& $bitmask $DllChar $$)) "{0,16:X} {1}`n`t`t   {2}" }
+                '^dll'    { if ($$) { & $printf ($$, $remark, (& $bitmask $DllChar $$)) "{0,16:X} {1}`n`t`t   {2}" } }
                 'machine' { & $printf ($$, $remark, (& $value $Machine $$)) '{0,16:X} {1} ({2})'}
                 'magic'   { & $printf ($$, $remark, ($$ -eq 0x20B ? '+' : '')) '{0,16:X} {1} # (PE32{2})'}
                 'major'   { $ver = $$ }
@@ -356,13 +360,43 @@ function Get-PeView {
         else { # should be same .rsrc -> PointerToRawData
           $fs.Position = Convert-RvaToRaw $Resources.RVA $IMAGE_OPTIONAL_HEADER.SectionAlignment
           $rsrc = $fs.Position
-          Get-Block IMAGE_RESOURCE_DIRECTORY {
+          Get-Block IMAGE_RESOURCE_DIRECTORY { # root
             UInt32 Characteristics
             UInt32 TimeDateStamp
             UInt16 MajorVersion
             UInt16 MinorVersion
             UInt16 NumberOfNamedEntries
             UInt16 NumberOfIdEntries
+          }
+          $total = $IMAGE_RESOURCE_DIRECTORY.NumberOfNamedEntries + $IMAGE_RESOURCE_DIRECTORY.NumberOfIdEntries
+          $IMAGE_RESOURCE_DIRECTORY = @{}
+          (0..($total - 1)).ForEach{
+            Get-Block IMAGE_RESOURCE_DIRECTORY_ENTRY { # top level points
+              UInt32 Name
+              UInt32 OffsetToData
+            }
+            $cursor = $fs.Position
+            $Name = $IMAGE_RESOURCE_DIRECTORY_ENTRY.Name -band 0x80000000 ? $(
+              $fs.Position = $rsrc + ($IMAGE_RESOURCE_DIRECTORY_ENTRY.Name -band 0x7FFFFFFF)
+              [Text.Encoding]::Unicode.GetString($br.ReadBytes($br.ReadUInt16() * 2))
+            ) : $(
+              $ResIds.Keys.Where{($$ = $IMAGE_RESOURCE_DIRECTORY_ENTRY.Name) -eq $ResIds.$_} ?? $$
+            )
+            $fs.Position = $rsrc + ($IMAGE_RESOURCE_DIRECTORY_ENTRY.OffsetToData -band 0x7FFFFFFF)
+            Get-Block IMAGE_RESOURCE_DIRECTORY {
+              UInt32 Characteristics
+              UInt32 TimeDateStamp
+              UInt16 MajorVersion
+              UInt16 MinorVersion
+              UInt16 NumberOfNamedEntries
+              UInt16 NumberOfIdEntries
+            }
+            $subs = $IMAGE_RESOURCE_DIRECTORY.NumberOfNamedEntries + $IMAGE_RESOURCE_DIRECTORY.NumberOfIdEntries
+            "ResDir ($Name) Entries:$($subs.ToString('X2')) (Named:$(
+              $IMAGE_RESOURCE_DIRECTORY.NumberOfNamedEntries
+            ), ID:$($IMAGE_RESOURCE_DIRECTORY.NumberOfIdEntries))"
+            $fs.Position = $cursor
+            $IMAGE_RESOURCE_DIRECTORY_ENTRY = @{}
           }
         }
       } # ResInfo
