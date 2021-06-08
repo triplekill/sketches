@@ -65,7 +65,7 @@ function Get-PeView {
     }, @{
       CURSOR = 1; BITMAP = 2; ICON = 3; MENU = 4; DIALOG = 5; STRING = 6; FONTDIR = 7; FONT = 8; ACCELERATORS = 9;
       RCDATA = 10; MESSAGETABLE = 11; GROUP_ICON = 14; VERSION = 16; DLGINCLUDE = 17; PLUGPLAY = 19; VXD = 20;
-      ANICURSOR = 21; ANICON = 22; HTML = 23;MANIFEST = 24
+      ANICURSOR = 21; ANICON = 22; HTML = 23; MANIFEST = 24 # seems like using array is the better way
     }
 
     function private:Get-Block([String]$Name, [ScriptBlock]$Fields, [Boolean]$Print) {
@@ -239,7 +239,7 @@ function Get-PeView {
           Characteristics = $br.ReadUInt32()
         }
       }
-      if ($Headers) {
+      if ($Headers) { # note that a section cannot be RWX at the same time (packed)
         $Sections | Format-Table Name, @{N='VirtualSize';E={$_.VirtualSize.ToString('X')};A='Right'}, @{
           N='VirtualAddress';E={$_.VirtualAddress.ToString('X')};A='Right'
         }, @{N='SizeOfRawData';E={$_.SizeOfRawData.ToString('X')};A='Right'}, @{
