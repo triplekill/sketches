@@ -9,19 +9,15 @@
 #include <vector>
 #include <locale>
 
+#pragma comment (lib, "ntdll.lib")
+
 typedef LONG KPRIORITY;
 typedef LONG NTSTATUS;
 
-#define SystemProcessInformation 5
+#define SystemExtendedProcessInformation 57
 #define NT_SUCCESS(Status) ((static_cast<NTSTATUS>(Status)) >= 0L)
 #define STATUS_INFO_LENGTH_MISMATCH (static_cast<NTSTATUS>(0xC0000004L))
 #define AddrToFunc(T) (reinterpret_cast<T>(GetProcAddress(GetModuleHandle(L"ntdll.dll"), (&((#T)[1])))))
-
-typedef struct _UNICODE_STRING {
-   USHORT Length;
-   USHORT MaximumLength;
-   PWSTR  Buffer;
-} UNICODE_STRING, *PUNICODE_STRING;
 
 typedef struct _CLIENT_ID {
    HANDLE UniqueProcess;
@@ -29,17 +25,17 @@ typedef struct _CLIENT_ID {
 } CLIENT_ID, *PCLIENT_ID;
 
 typedef enum _KTHREAD_STATE {
-   Initialized, Ready, Running, Standby, Terminated, Waiting, Transition, DefferedReady,
-   GateWaitObsolete, WaitingForProcessInSwap, MaximumThreadState
+   Initialized, Ready, Running, Standby, Terminated, Waiting, Transition, DeferredReady,
+   GateWaitObsolete, WaitingForProcessInSwap
 } KTHREAD_STATE, *PKTHREAD_STATE;
 
 typedef enum _KWAIT_REASON {
    Executive, FreePage, PageIn, PoolAllocation, DelayExecution, Suspended, UserRequest, WrExecutive,
-   WrFreePage, WrPageIn, WrPoolAllocation, WrDelayExecution, WrSuspended, WrUserRequest, WrEventPair,
+   WrFreePage, WrPageIn, WrPoolAllocation, WrDelayExecution, WrSuspended, WrUserRequest, WrSpare0,
    WrQueue, WrLpcReceive, WrLpcReply, WrVirtualMemory, WrPageOut, WrRendezvous, WrKeyedEvent,
    WrTerminated, WrProcessInSwap, WrCpuRateControl, WrCalloutStack, WrKernel, WrResource, WrPushLock,
    WrMutex, WrQuantumEnd, WrDispatchInt, WrPreempted, WrYieldExecution, WrFastMutex, WrGuardedMutex,
-   WrRundown, WrAlertByThreadId, WrDeferredPreempt, MaximumWaitReason
+   WrRundown, WrAlertByThreadId, WrDeferredPreempt, WrPhysicalFault, MaximumWaitReason
 } KWAIT_REASON, *PKWAIT_REASON;
 
 typedef struct _SYSTEM_THREAD_INFORMATION {
@@ -48,13 +44,30 @@ typedef struct _SYSTEM_THREAD_INFORMATION {
    LARGE_INTEGER CreateTime;
    ULONG         WaitTime;
    PVOID         StartAddress;
-   CLIENT_ID     ClientId;
+   CLIENT_ID     ClieantId;
    KPRIORITY     Priority;
    LONG          BasePriority;
    ULONG         ContextSwitches;
    KTHREAD_STATE ThreadState;
    KWAIT_REASON  WaitReason;
 } SYSTEM_THREAD_INFORMATION, *PSYSTEM_THREAD_INFORMATION;
+
+typedef struct _SYSTEM_EXTENDED_THREAD_INFORMATION {
+   SYSTEM_THREAD_INFORMATION ThreadInfo;
+   PVOID StackBase;
+   PVOID StackLimit;
+   PVOID Win32StartAddress;
+   PVOID TebBase; // PTEB
+   ULONG_PTR Reserved2;
+   ULONG_PTR Reserved3;
+   ULONG_PTR Reserved4;
+} SYSTEM_EXTENDED_THREAD_INFORMATION, *PSYSTEM_EXTENDED_THREAD_INFORMATION;
+
+typedef struct _UNICODE_STRING {
+   USHORT Length;
+   USHORT MaximumLength;
+   PWSTR  Buffer;
+} UNICODE_STRING, *PUNICODE_STRING;
 
 typedef struct _SYSTEM_PROCESS_INFORMATION {
    ULONG          NextEntryOffset;
@@ -91,7 +104,7 @@ typedef struct _SYSTEM_PROCESS_INFORMATION {
    LARGE_INTEGER  ReadTransferCount;
    LARGE_INTEGER  WriteTransferCount;
    LARGE_INTEGER  OtherTransferCount;
-   SYSTEM_THREAD_INFORMATION Threads[1];
+   SYSTEM_EXTENDED_THREAD_INFORMATION Threads[1];
 } SYSTEM_PROCESS_INFORMATION, *PSYSTEM_PROCESS_INFORMATION;
 
 typedef NTSTATUS (__stdcall *pNtQuerySystemInformation)(ULONG, PVOID, ULONG, PULONG);
@@ -130,7 +143,7 @@ int wmain(int argc, WCHAR **argv) {
     }
 
     if (nullptr != LocalFree(loc))
-      wcout << L"LocalFree (" << GetLastError() << L") fatal error." << endl;
+      wcout << L"[!] LocalFree (" << ::GetLastError() << L") fatal error." << endl;
   };
 
   if (!LocateSignatures()) {
@@ -138,23 +151,30 @@ int wmain(int argc, WCHAR **argv) {
     return 1;
   }
 
+  locale::global(locale(""));
   if (2 != argc) {
     wstring app(argv[0]);
     wcout << L"Usage: "
-          << app.substr(app.find_last_of(L"\\") + 1, app.length())
+          << app.substr(app.find_last_of(L'\\') + 1, app.length())
           << L" <PID>" << endl;
     return 1;
   }
 
-  ULONG req = 0;
-  NTSTATUS nts = NtQuerySystemInformation(SystemProcessInformation, nullptr, 0, &req);
+  ULONG pid{}, req{};
+  pid = wcstoul(argv[1], 0, 0);
+  if (!pid) {
+    wcout << L"[!] Invalid PID value." << endl;
+    return 1;
+  }
+
+  NTSTATUS nts = ::NtQuerySystemInformation(SystemExtendedProcessInformation, nullptr, 0, &req);
   if (STATUS_INFO_LENGTH_MISMATCH != nts) {
     getlasterror(nts);
     return 1;
   }
 
   vector<BYTE> buf(req);
-  nts = NtQuerySystemInformation(SystemProcessInformation, &buf[0], req, nullptr);
+  nts = NtQuerySystemInformation(SystemExtendedProcessInformation, &buf[0], req, nullptr);
   if (!NT_SUCCESS(nts)) {
     getlasterror(nts);
     return 1;
@@ -162,23 +182,19 @@ int wmain(int argc, WCHAR **argv) {
 
   PSYSTEM_PROCESS_INFORMATION ps = reinterpret_cast<PSYSTEM_PROCESS_INFORMATION>(&buf[0]);
   while (ps->NextEntryOffset) {
-    if (reinterpret_cast<ULONGLONG>(ps->UniqueProcessId) == wcstoul(argv[1], 0, 0)) {
+    if (reinterpret_cast<ULONGLONG>(ps->UniqueProcessId) == pid) {
       wcout << L"[*] " << ps->ImageName.Buffer << L"..." << endl;
       for (ULONG i = 0; i < ps->NumberOfThreads; i++) {
-        wcout << ps->Threads[i].StartAddress << dec
-              << L" [~" << setw(2) << i << L"; "
-              << ps->Threads[i].ClientId.UniqueThread
-              << L"]" << endl;
+        wcout << L"   ~[" << i + 1 << L"] " << setw(4)
+              << reinterpret_cast<ULONGLONG>(ps->Threads[i].ThreadInfo.ClieantId.UniqueThread)
+              << L" Win32StartAddress:0x" << ps->Threads[i].Win32StartAddress
+              << L"\n\tStack base:0x" << ps->Threads[i].StackBase
+              << L" limit:0x" << ps->Threads[i].StackLimit << endl;
       }
       break;
     }
-    ps = reinterpret_cast<PSYSTEM_PROCESS_INFORMATION>(
-      reinterpret_cast<PBYTE>(ps) + ps->NextEntryOffset
-    );
+    ps = reinterpret_cast<PSYSTEM_PROCESS_INFORMATION>(reinterpret_cast<PBYTE>(ps) + ps->NextEntryOffset);
   }
-
-  vector<BYTE> ().swap(buf);
-  wcout << L"[*] that's done..." << endl;
 
   return 0;
 }
