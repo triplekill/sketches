@@ -44,7 +44,7 @@ typedef struct _SYSTEM_THREAD_INFORMATION {
    LARGE_INTEGER CreateTime;
    ULONG         WaitTime;
    PVOID         StartAddress;
-   CLIENT_ID     ClieantId;
+   CLIENT_ID     ClientId;
    KPRIORITY     Priority;
    LONG          BasePriority;
    ULONG         ContextSwitches;
@@ -186,7 +186,7 @@ int wmain(int argc, WCHAR **argv) {
       wcout << L"[*] " << ps->ImageName.Buffer << L"..." << endl;
       for (ULONG i = 0; i < ps->NumberOfThreads; i++) {
         wcout << L"   ~[" << i + 1 << L"] " << setw(4)
-              << reinterpret_cast<ULONGLONG>(ps->Threads[i].ThreadInfo.ClieantId.UniqueThread)
+              << reinterpret_cast<ULONGLONG>(ps->Threads[i].ThreadInfo.ClientId.UniqueThread)
               << L" Win32StartAddress:0x" << ps->Threads[i].Win32StartAddress
               << L" Teb:0x" << ps->Threads[i].TebBase
               << L"\n\tStack base:0x" << ps->Threads[i].StackBase
