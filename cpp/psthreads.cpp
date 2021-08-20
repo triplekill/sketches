@@ -188,6 +188,7 @@ int wmain(int argc, WCHAR **argv) {
         wcout << L"   ~[" << i + 1 << L"] " << setw(4)
               << reinterpret_cast<ULONGLONG>(ps->Threads[i].ThreadInfo.ClieantId.UniqueThread)
               << L" Win32StartAddress:0x" << ps->Threads[i].Win32StartAddress
+              << L" Teb:0x" << ps->Threads[i].TebBase
               << L"\n\tStack base:0x" << ps->Threads[i].StackBase
               << L" limit:0x" << ps->Threads[i].StackLimit << endl;
       }
