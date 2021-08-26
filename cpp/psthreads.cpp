@@ -167,7 +167,7 @@ int wmain(int argc, WCHAR **argv) {
     return 1;
   }
 
-  NTSTATUS nts = ::NtQuerySystemInformation(SystemExtendedProcessInformation, nullptr, 0, &req);
+  NTSTATUS nts = NtQuerySystemInformation(SystemExtendedProcessInformation, nullptr, 0, &req);
   if (STATUS_INFO_LENGTH_MISMATCH != nts) {
     getlasterror(nts);
     return 1;
