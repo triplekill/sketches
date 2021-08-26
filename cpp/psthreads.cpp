@@ -143,7 +143,7 @@ int wmain(int argc, WCHAR **argv) {
     }
 
     if (nullptr != LocalFree(loc))
-      wcout << L"[!] LocalFree (" << ::GetLastError() << L") fatal error." << endl;
+      wcout << L"[!] LocalFree (" << GetLastError() << L") fatal error." << endl;
   };
 
   if (!LocateSignatures()) {
