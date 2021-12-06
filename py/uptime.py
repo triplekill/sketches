@@ -19,7 +19,7 @@ if __name__ == '__main__':
       print(timedelta(seconds=si[0]))
    elif 'Windows' == os:
       from ctypes import create_unicode_buffer, windll
-      sti = pack('qqqLLQQ', 1, 2, 3, 4, 5, 6, 7)
+      sti = pack('3q2L2Q', 1, 2, 3, 4, 5, 6, 7)
       nts = windll.ntdll.NtQuerySystemInformation(3, sti, len(sti), None)
       if 0 != nts:
          msg = create_unicode_buffer(0x100)
@@ -30,5 +30,5 @@ if __name__ == '__main__':
             ) else msg.value
          )
          exit(err)
-      sti = unpack('qqqLLQQ', sti)
+      sti = unpack('3q2L2Q', sti)
       print(timedelta(seconds=int((sti[1] - sti[0]) // 1e7)))
